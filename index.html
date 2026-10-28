@@ -399,7 +399,7 @@ function gerar() {
   const cicloN = Math.max(1, lav > 0 ? Math.min(noites, lav) : noites);
   const m = +p.margem || 0, tr = +p.trocas || 1;
   const at = new Set(t.atividades || []);
-  const neve = at.has('neve'), praia = at.has('praia'), mont = at.has('montanha'), trab = at.has('trabalho') || p.portatil;
+  const neve = at.has('neve'), praia = at.has('praia'), mont = at.has('montanha'), trab = at.has('trabalho');
   const quente = t.clima === 'quente', frio = t.clima === 'frio' || neve, misto = t.clima === 'misto';
   const cuid = new Set(p.cuidado || []);
   const L = [];
@@ -435,7 +435,8 @@ function gerar() {
   if (neve) pedidos.push(['botasneve','Botas impermeáveis']);
   if (praia) pedidos.push(['chinelos','Chinelos']);
   pedidos.forEach(([id, n]) => add('calcado', id, n, 1));
-  const livres = Math.max(0, +p.calcado - pedidos.length);
+  const pedidosAtivos = pedidos.filter(([id]) => !S.removed[id]);
+  const livres = Math.max(0, +p.calcado - pedidosAtivos.length);
   if (livres) add('calcado','calcadoextra','Par extra à escolha', livres);
 
   // acessórios
@@ -479,7 +480,7 @@ function gerar() {
   add('eletronica','powerbank','Powerbank', 1, aviao ? 'sempre na bagagem de mão, nunca no porão' : '');
   add('eletronica','phones','Auscultadores', 1);
   if (t.tomada) add('eletronica','adaptador','Adaptador de tomada', 1);
-  if (trab) add('eletronica','portatil','Portátil e carregador', 1);
+  if (trab || p.portatil) add('eletronica','portatil','Portátil e carregador', 1);
   if (dias > 3) add('eletronica','usb','Carregador USB com várias saídas', 1);
 
   // documentos
@@ -517,7 +518,7 @@ function gerar() {
   S.custom.forEach(c => L.push({ cat: c.cat, id: 'c-' + c.id, nome: c.nome, qtd: c.qtd, nota: 'adicionado por ti', custom: true }));
 
   const out = L.filter(i => !S.removed[i.id]).map(i => ({ ...i, qtd: S.qtd[i.id] ?? i.qtd }));
-  return { itens: out, dias, noites, ciclo, lav, pedidos, sess };
+  return { itens: out, dias, noites, ciclo, lav, pedidos: pedidosAtivos, sess };
 }
 
 /* ---------- avaliação de outfits ---------- */
@@ -662,7 +663,7 @@ function renderLista() {
     if (roupa > 18) notas.push(['warn', `${roupa} peças de roupa (sem contar roupa interior e meias) numa mala de cabine é muito. Reduz a margem de segurança ou planeia uma lavagem.`]);
   }
   const plano = pecasDoPlano();
-  if (plano.length) notas.push(['', `Incluí ${plano.length} peças do teu plano de outfits. As quantidades genéricas de partes de cima e de baixo podem estar a duplicar essas peças; ajusta com os botões.`]);
+  if (plano.length && (!S.removed.topo || !S.removed.baixo)) notas.push(['', `Incluí ${plano.length} peças do teu plano de outfits. As quantidades genéricas de partes de cima e de baixo podem estar a duplicar essas peças; ajusta com os botões.`]);
 
   let html = `<section class="block">
     <div class="row" style="justify-content:space-between"><h2>A mala</h2><span class="label">${r.dias} dias · ${r.lav ? 'lavar a cada ' + r.lav : 'sem lavandaria'}</span></div>
