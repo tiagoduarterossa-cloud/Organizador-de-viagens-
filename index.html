@@ -140,6 +140,26 @@ textarea{min-height:90px;font-family:var(--f-mono);font-size:.8rem}
 .ocard .strip{display:flex;height:10px;border-radius:4px;overflow:hidden}
 .ocard .strip i{flex:1}
 .ocard ul{margin:0;padding-left:18px;font-size:.88rem;color:var(--muted)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+.pcard{background:var(--card);border:1.5px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.pcard.on{border-color:var(--sign);box-shadow:0 0 0 2px var(--sign)}
+.pcard .pick{border:0;background:transparent;padding:0;text-align:left;display:flex;flex-direction:column;min-width:0}
+.ph{aspect-ratio:1;width:100%;max-width:100%;background:var(--soft);display:grid;place-items:center;overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .big{width:44%;aspect-ratio:1;border-radius:50%;border:1px solid #0000002a}
+.pcard .pn{padding:7px 8px 2px;font-weight:600;font-size:.88rem;line-height:1.25;overflow-wrap:anywhere}
+.pcard .pt{padding:0 8px;font-size:.75rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+.pcard .pa{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 4px 8px}
+.pcard .pa button.lnk{border:0;background:transparent;color:var(--sky);font-weight:600;font-size:.8rem;padding:4px 0}
+.thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none;background:var(--soft)}
+.slot .thumb{width:100%;height:auto;aspect-ratio:1;max-width:100%}
+.othumbs{display:flex;gap:4px;flex-wrap:wrap}
+.othumbs .thumb{width:40px;height:40px}
+.othumbs .tcol{width:40px;height:40px;border-radius:8px;border:1px solid var(--line)}
+.fprev{display:flex;gap:10px;align-items:center}
+.conta{display:flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.04em;color:var(--pass-muted)}
+.conta i{width:8px;height:8px;border-radius:50%;background:var(--pass-muted);display:inline-block}
+.conta.ok i{background:#5DBB86} .conta.erro i{background:#F08A4B}
 .plan{display:flex;flex-direction:column}
 .pday{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .pday .d{font-family:var(--f-mono);font-size:.85rem}
@@ -163,6 +183,7 @@ table.cmp td.n{font-family:var(--f-mono);text-align:right}
     <a href="#outfits" data-tab="outfits">Outfits<span>04 conjugar</span></a>
   </nav>
   <main id="main"></main>
+  <input type="file" id="foto-in" accept="image/*" hidden>
 </div>
 <script>
 const LS = 'mala-feita-v1';
@@ -241,7 +262,104 @@ try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.trip) S = exemplo();
 S = Object.assign(exemplo(), S);
 S.builder = S.builder || {};
-function save() { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} }
+const limpo = () => { const c = { ...S }; delete c._pend; return c; };
+function save() { try { localStorage.setItem(LS, JSON.stringify(limpo())); } catch (e) {} agendar(); }
+
+/* ---------- conta e sincronização (conta Claude) ---------- */
+const SY = { db: null, doc: null, assets: null, nome: '', estado: 'local', erro: '', meus: new Set(), pendente: null, aEscrever: false, sujo: false, t: null };
+function agendar() { if (!SY.doc) return; clearTimeout(SY.t); SY.t = setTimeout(escrever, 700); }
+async function escrever() {
+  if (!SY.doc) return;
+  if (SY.aEscrever) { SY.sujo = true; return; }
+  SY.aEscrever = true;
+  const rev = uid(); SY.meus.add(rev);
+  try {
+    await SY.doc.set({ json: JSON.stringify(limpo()), rev, em: new Date().toISOString() });
+    SY.estado = 'ok'; SY.erro = '';
+  } catch (e) {
+    SY.estado = 'erro';
+    SY.erro = e && e.code === 'invalid_argument' ? 'Os dados passaram o limite de tamanho. Apaga algumas fotografias.' : 'Não consegui guardar na conta. Os dados ficam neste aparelho e volto a tentar na próxima alteração.';
+  }
+  SY.aEscrever = false; renderPass();
+  if (SY.sujo) { SY.sujo = false; escrever(); }
+}
+function aplicarRemoto(d) {
+  try { S = Object.assign(exemplo(), JSON.parse(d.json)); } catch (e) { return; }
+  try { localStorage.setItem(LS, JSON.stringify(limpo())); } catch (e) {}
+  render();
+}
+const aEditar = () => { const a = document.activeElement; return a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox'; };
+document.addEventListener('focusout', () => setTimeout(() => { if (SY.pendente && !aEditar()) { const d = SY.pendente; SY.pendente = null; aplicarRemoto(d); } }, 0));
+async function ligarConta() {
+  if (!window.claude || typeof window.claude.use !== 'function') return;
+  const [db, user, assets] = await Promise.all(['db', 'user', 'assets'].map(n => window.claude.use(n).catch(() => null)));
+  SY.assets = assets;
+  if (!db || !user) { render(); return; }
+  const me = await user.me();
+  if (!me.id) { render(); return; }
+  SY.nome = me.name; SY.db = db; SY.doc = db.doc('data/users/' + me.id + '/estado');
+  try {
+    const snap = await SY.doc.get();
+    if (snap.exists && snap.data().json) aplicarRemoto(snap.data());
+    else { await escrever(); }
+    if (SY.estado !== 'erro') SY.estado = 'ok';
+  } catch (e) { SY.estado = 'erro'; SY.erro = 'Não consegui ler os dados da conta.'; }
+  SY.doc.onSnapshot(snap => {
+    if (!snap.exists || snap.metadata.hasPendingWrites) return;
+    const d = snap.data();
+    if (!d.rev || SY.meus.has(d.rev)) return;
+    SY.meus.add(d.rev);
+    if (aEditar()) SY.pendente = d; else aplicarRemoto(d);
+  }, () => { SY.estado = 'erro'; SY.erro = 'A ligação à conta caiu. Recarrega a página.'; renderPass(); });
+  render();
+}
+
+/* ---------- fotografias ---------- */
+function redimensionar(file, max) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagem')); };
+    img.src = url;
+  });
+}
+async function processarFoto(file) {
+  if (SY.assets) {
+    const c = await redimensionar(file, 1100);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .82));
+    const r = await SY.assets.upload(blob, { type: 'image/jpeg' });
+    return { foto: r.id };
+  }
+  const c = await redimensionar(file, 360);
+  return { fotoData: c.toDataURL('image/jpeg', .65) };
+}
+const fotoSrc = p => p && (p.foto ? '/_blob/' + p.foto : p.fotoData || '');
+function apagarFoto(p) { if (p && p.foto && SY.assets) SY.assets.delete(p.foto).catch(() => {}); }
+let fotoNova = null, fotoAlvo = null, aCarregar = false, msgFoto = '';
+const RW = { nome: '', tipo: 'cima', cor: 'preto', oc: 'casual' };
+async function juntarPeca() {
+  const p = { id: uid(), nome: RW.nome.trim(), tipo: RW.tipo, cor: RW.cor, ocasiao: RW.oc };
+  if (fotoNova) {
+    aCarregar = true; render();
+    try { Object.assign(p, await processarFoto(fotoNova.file)); msgFoto = ''; }
+    catch (e) { msgFoto = 'Não consegui guardar a fotografia. A peça ficou sem ela; tenta "Pôr foto" outra vez.'; }
+    URL.revokeObjectURL(fotoNova.url); fotoNova = null; aCarregar = false;
+  }
+  S.wardrobe.push(p); RW.nome = ''; commit();
+}
+async function fotoParaPeca(id, file) {
+  const p = peca(id); if (!p) return;
+  aCarregar = true; msgFoto = ''; render();
+  try { const f = await processarFoto(file); apagarFoto(p); delete p.foto; delete p.fotoData; Object.assign(p, f); }
+  catch (e) { msgFoto = 'Não consegui guardar a fotografia. Experimenta outra imagem.'; }
+  aCarregar = false; commit();
+}
 
 /* ---------- cálculos ---------- */
 function duracao(t) {
@@ -420,6 +538,7 @@ function renderPass() {
   const clima = { quente:'Quente', ameno:'Ameno', frio:'Frio', misto:'Variável' }[t.clima];
   $('#pass').innerHTML = `<div class="pass"><div class="pass-in">
     <div class="pass-top"><span class="brand">Mala Feita</span>${t.exemplo ? '<span class="tag-ex">Exemplo · edita em Viagem</span>' : ''}</div>
+    <a class="conta ${SY.estado}" href="#habitos" style="text-decoration:none"><i></i>${SY.estado === 'ok' ? 'Sincronizado' + (SY.nome ? ' · ' + esc(SY.nome) : '') : SY.estado === 'erro' ? 'Erro de sincronização' : 'Só neste aparelho'}</a>
     <div class="route"><div>${codigo(t.origem)}<small>${esc(t.origem) || 'Origem'}</small></div><span class="arr">✈</span><div>${codigo(t.destino)}<small>${esc(t.destino) || 'Destino'}</small></div></div>
     <div class="pass-meta">
       <div><span class="label">Partida</span><b>${fmtData(t.inicio)}</b></div>
@@ -486,8 +605,14 @@ function renderHabitos() {
       <div class="resumo">${Q.map((q, j) => `<button data-act="qir" data-i="${j}"><span>${q.curta}</span><b>${labelResp(q)}</b></button>`).join('')}</div>
       <div class="row"><a class="btn sign" href="#lista" style="text-decoration:none">Ver a mala</a><button class="btn ghost" data-act="qir" data-i="0">Responder de novo</button></div></section>`;
   }
-  html += `<section class="block"><h3>Cópia de segurança</h3>
-    <p class="muted small">Os dados ficam guardados neste navegador. Para passares para outro aparelho, copia o texto e cola-o lá.</p>
+  html += `<section class="block"><h3>Conta e telemóvel</h3>
+    ${SY.estado === 'ok' ? `<p class="nota">Tens sessão iniciada${SY.nome ? ' como <b>' + esc(SY.nome) + '</b>' : ''} com a tua conta Claude. Tudo o que fazes fica guardado na conta, de forma privada. No telemóvel, abre este mesmo link na app Claude ou no navegador com a mesma conta e encontras a viagem, a mala e as fotografias.</p>`
+      : SY.estado === 'erro' ? `<p class="nota warn">${esc(SY.erro)}</p>`
+      : `<p class="nota">Estás a usar a app sem sessão: os dados ficam só neste navegador. Para os teres no telemóvel e no computador, abre a Mala Feita pelo link do claude.ai com sessão iniciada na tua conta Claude.</p>`}
+    <p class="muted small">Dica: no telemóvel, usa "Adicionar ao ecrã principal" no menu do navegador para abrires a Mala Feita como uma app.</p>
+  </section>
+  <section class="block"><h3>Cópia de segurança</h3>
+    <p class="muted small">Para guardares uma cópia à parte ou passares dados sem conta, copia o texto e cola-o no outro aparelho.</p>
     <div class="row"><button class="btn ghost" data-act="copiar">Copiar dados</button><span id="copiado" class="small muted"></span></div>
     <textarea id="imp" placeholder="Cola aqui os dados copiados noutro aparelho"></textarea>
     <div class="row"><button class="btn ghost" data-act="importar">Restaurar dados colados</button>
@@ -559,24 +684,37 @@ function renderOutfits() {
     <div class="row" style="justify-content:space-between"><h2>Guarda-roupa da viagem</h2>${temEx ? '<button class="btn ghost small" data-act="limparex">Apagar exemplos</button>' : ''}</div>
     <p class="muted">Junta as peças que estás a pensar levar. Toca numa peça para a pôr no outfit.</p>
     <div class="grid2">
-      <label class="field"><span class="label">Peça</span><input type="text" id="w-nome" placeholder="Ex.: Camisa de linho"></label>
-      <label class="field"><span class="label">Tipo</span><select id="w-tipo">${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
-      <label class="field"><span class="label">Cor</span><select id="w-cor">${Object.entries(CORES).map(([k, v]) => `<option value="${k}">${v[0]}${NEUTRAS.has(k) ? ' · neutra' : ''}</option>`).join('')}</select></label>
-      <label class="field"><span class="label">Ocasião</span><select id="w-oc">${Object.entries(OCASIOES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+      <label class="field"><span class="label">Peça</span><input type="text" id="w-nome" value="${esc(RW.nome)}" placeholder="Ex.: Camisa de linho"></label>
+      <label class="field"><span class="label">Tipo</span><select id="w-tipo">${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}" ${RW.tipo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label class="field"><span class="label">Cor</span><select id="w-cor">${Object.entries(CORES).map(([k, v]) => `<option value="${k}" ${RW.cor === k ? 'selected' : ''}>${v[0]}${NEUTRAS.has(k) ? ' · neutra' : ''}</option>`).join('')}</select></label>
+      <label class="field"><span class="label">Ocasião</span><select id="w-oc">${Object.entries(OCASIOES).map(([k, v]) => `<option value="${k}" ${RW.oc === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     </div>
-    <div class="row"><button class="btn" data-act="addw">Juntar peça</button><span class="small muted">Com o que tens: <b class="stat">${combos}</b> combinações possíveis (cima × baixo × calçado).</span></div>`;
+    <div class="fprev">
+      ${fotoNova ? `<img class="thumb" src="${fotoNova.url}" alt="Pré-visualização">` : ''}
+      <button class="btn ghost" data-act="escolherfoto" data-id="">${fotoNova ? 'Trocar fotografia' : 'Tirar ou escolher fotografia'}</button>
+      ${fotoNova ? '<button class="x" data-act="tirarfoto" aria-label="Retirar fotografia">×</button>' : '<span class="small muted">opcional</span>'}
+    </div>
+    <div class="row"><button class="btn" data-act="addw" ${aCarregar ? 'disabled' : ''}>${aCarregar ? 'A guardar fotografia…' : 'Juntar peça'}</button><span class="small muted">Com o que tens: <b class="stat">${combos}</b> combinações possíveis (cima × baixo × calçado).</span></div>
+    ${msgFoto ? `<p class="nota warn">${esc(msgFoto)}</p>` : ''}`;
   for (const [t, nome] of Object.entries(TIPOS)) {
     const ps = W.filter(p => p.tipo === t);
     if (!ps.length) continue;
-    html += `<div class="stack" style="gap:6px"><span class="label">${nome} · ${ps.length}</span><div class="pieces">${ps.map(p => `
-      <span class="piece ${sel.has(p.id) ? 'on' : ''}"><button class="pick" data-act="pick" data-id="${p.id}" aria-pressed="${sel.has(p.id)}">${sw(p.cor)}<span>${esc(p.nome)}</span>${p.ex ? '<span class="ex">EXEMPLO</span>' : ''}</button><button class="x" data-act="delw" data-id="${p.id}" aria-label="Apagar ${esc(p.nome)}">×</button></span>`).join('')}</div></div>`;
+    html += `<div class="stack" style="gap:6px"><span class="label">${nome} · ${ps.length}</span><div class="pgrid">${ps.map(p => `
+      <div class="pcard ${sel.has(p.id) ? 'on' : ''}">
+        <button class="pick" data-act="pick" data-id="${p.id}" aria-pressed="${sel.has(p.id)}">
+          <span class="ph">${fotoSrc(p) ? `<img src="${esc(fotoSrc(p))}" alt="${esc(p.nome)}" loading="lazy">` : `<i class="big" style="background:${(CORES[p.cor] || CORES.cinzento)[1]}"></i>`}</span>
+          <span class="pn">${esc(p.nome)}</span>
+          <span class="pt">${sw(p.cor)}${OCASIOES[p.ocasiao] || ''}${p.ex ? ' · exemplo' : ''}</span>
+        </button>
+        <div class="pa"><button class="lnk" data-act="escolherfoto" data-id="${p.id}">${fotoSrc(p) ? 'Mudar foto' : 'Pôr foto'}</button><button class="x" data-act="delw" data-id="${p.id}" aria-label="Apagar ${esc(p.nome)}">×</button></div>
+      </div>`).join('')}</div></div>`;
   }
   html += `</section>`;
 
   const v = avaliar(bPecas());
   const slotsK = S.builder.unica ? ['unica','camada','calcado','acessorio'] : ['cima','baixo','camada','calcado','acessorio'];
   html += `<section class="block"><h2>Montar outfit</h2><div class="builder">
-    <div class="slots">${slotsK.map(k => { const p = peca(S.builder[k]); return `<div class="slot ${p ? 'full' : ''}"><span class="label">${TIPOS[k]}</span>${p ? `<b>${sw(p.cor)}${esc(p.nome)}</b>` : '<span class="muted small">vazio</span>'}</div>`; }).join('')}</div>
+    <div class="slots">${slotsK.map(k => { const p = peca(S.builder[k]); return `<div class="slot ${p ? 'full' : ''}"><span class="label">${TIPOS[k]}</span>${p && fotoSrc(p) ? `<img class="thumb" src="${esc(fotoSrc(p))}" alt="">` : ''}${p ? `<b>${sw(p.cor)}${esc(p.nome)}</b>` : '<span class="muted small">vazio</span>'}</div>`; }).join('')}</div>
     <p class="verdict ${v[0]}">${v[1]}</p>
     <div class="grid2">
       <label class="field"><span class="label">Sugerir para</span><select id="filtro"><option value="">Qualquer ocasião</option>${Object.entries(OCASIOES).map(([k, l]) => `<option value="${k}" ${S.filtro === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -590,6 +728,7 @@ function renderOutfits() {
       return `<div class="ocard"><div class="strip">${ps.map(p => `<i style="background:${(CORES[p.cor] || CORES.cinzento)[1]}"></i>`).join('')}</div>
         <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h3>${esc(o.nome)}</h3><button class="x" data-act="delo" data-id="${o.id}" aria-label="Apagar outfit">×</button></div>
         ${o.ex ? '<span class="ex label">Exemplo</span>' : ''}
+        <div class="othumbs">${ps.map(p => fotoSrc(p) ? `<img class="thumb" src="${esc(fotoSrc(p))}" alt="${esc(p.nome)}" loading="lazy">` : `<i class="tcol" style="background:${(CORES[p.cor] || CORES.cinzento)[1]}" title="${esc(p.nome)}"></i>`).join('')}</div>
         <ul>${ps.map(p => `<li>${esc(p.nome)}</li>`).join('')}</ul>
         <button class="btn ghost small" data-act="editaro" data-id="${o.id}">Abrir no editor</button></div>`; }).join('')}</div>` : '<p class="muted">Ainda não guardaste nenhum. Monta um acima ou pede uma sugestão.</p>'}</section>`;
 
@@ -662,7 +801,7 @@ document.addEventListener('click', e => {
       if (S._pend !== b.dataset.do) { S._pend = b.dataset.do; clearTimeout(pendTimer); pendTimer = setTimeout(() => { S._pend = null; render(); }, 4000); render(); return; }
       S._pend = null;
       if (b.dataset.do === 'desmarcar') S.checked = {};
-      if (b.dataset.do === 'reset') { S = exemplo(); S.wardrobe = []; S.outfits = []; S.trip.exemplo = false; }
+      if (b.dataset.do === 'reset') { S.wardrobe.forEach(apagarFoto); S = exemplo(); S.wardrobe = []; S.outfits = []; S.trip.exemplo = false; }
       break;
     case 'copiar': {
       const txt = JSON.stringify(S), out = $('#copiado');
@@ -674,11 +813,13 @@ document.addEventListener('click', e => {
       try { const d = JSON.parse($('#imp').value); if (!d.trip) throw 0; S = Object.assign(exemplo(), d); }
       catch (err) { $('#copiado').textContent = 'Esse texto não são dados desta app. Copia de novo no outro aparelho.'; return; }
       break;
-    case 'addw': {
-      const nome = $('#w-nome').value.trim(); if (!nome) { $('#w-nome').focus(); return; }
-      S.wardrobe.push({ id: uid(), nome, tipo: $('#w-tipo').value, cor: $('#w-cor').value, ocasiao: $('#w-oc').value }); break;
-    }
+    case 'addw':
+      if (!RW.nome.trim()) { $('#w-nome').focus(); return; }
+      juntarPeca(); return;
+    case 'escolherfoto': fotoAlvo = id || null; $('#foto-in').value = ''; $('#foto-in').click(); return;
+    case 'tirarfoto': if (fotoNova) URL.revokeObjectURL(fotoNova.url); fotoNova = null; break;
     case 'delw':
+      apagarFoto(peca(id));
       S.wardrobe = S.wardrobe.filter(p => p.id !== id);
       S.outfits.forEach(o => o.pecas = o.pecas.filter(x => x !== id));
       for (const k in S.builder) if (S.builder[k] === id) delete S.builder[k];
@@ -707,6 +848,7 @@ document.addEventListener('click', e => {
       break;
     case 'limparex': {
       const ids = new Set(S.wardrobe.filter(p => p.ex).map(p => p.id));
+      S.wardrobe.filter(p => p.ex).forEach(apagarFoto);
       S.wardrobe = S.wardrobe.filter(p => !p.ex);
       S.outfits = S.outfits.filter(o => !o.ex).map(o => ({ ...o, pecas: o.pecas.filter(x => !ids.has(x)) }));
       for (const k in S.builder) if (ids.has(S.builder[k])) delete S.builder[k];
@@ -721,6 +863,7 @@ document.addEventListener('input', e => {
   const el = e.target;
   if (el.dataset.bind && el.type === 'text') { S.trip[el.dataset.bind] = el.value; S.trip.exemplo = false; save(); renderPass(); }
   if (el.id === 'o-nome') { S.oNome = el.value; save(); }
+  if (el.id === 'w-nome') RW.nome = el.value;
 });
 document.addEventListener('change', e => {
   const el = e.target;
@@ -735,9 +878,20 @@ document.addEventListener('change', e => {
   if (el.dataset.plan) { if (el.value) S.plan[el.dataset.plan] = el.value; else delete S.plan[el.dataset.plan]; return commit(); }
   if (el.id === 'esconder') { S.esconder = el.checked; return commit(); }
   if (el.id === 'filtro') { S.filtro = el.value; save(); }
+  if (el.id === 'w-tipo') RW.tipo = el.value;
+  if (el.id === 'w-cor') RW.cor = el.value;
+  if (el.id === 'w-oc') RW.oc = el.value;
+  if (el.id === 'foto-in' && el.files && el.files[0]) {
+    const f = el.files[0];
+    if (!/^image\//.test(f.type)) { msgFoto = 'Esse ficheiro não é uma imagem.'; return render(); }
+    if (fotoAlvo) return fotoParaPeca(fotoAlvo, f);
+    if (fotoNova) URL.revokeObjectURL(fotoNova.url);
+    fotoNova = { file: f, url: URL.createObjectURL(f) }; msgFoto = ''; render();
+  }
 });
 window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
 render();
+ligarConta();
 </script>
 </body>
 </html>
