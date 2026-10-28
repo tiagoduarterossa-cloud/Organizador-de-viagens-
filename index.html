@@ -203,7 +203,9 @@ const CORES = {
 const NEUTRAS = new Set(['preto','branco','cinzento','marinho','bege','castanho','ganga','oliva']);
 const TIPOS = { cima:'Parte de cima', baixo:'Parte de baixo', unica:'Vestido / peça única', camada:'Casaco / camada', calcado:'Calçado', acessorio:'Acessório' };
 const OCASIOES = { casual:'Casual', trabalho:'Trabalho', formal:'Formal / jantar', desporto:'Desporto', praia:'Praia' };
-const CATS = { roupa:'Roupa', calcado:'Calçado', acessorios:'Acessórios', higiene:'Higiene', saude:'Saúde', eletronica:'Eletrónica', documentos:'Documentos', utensilios:'Utensílios' };
+const CATS = { roupa:'Roupa', calcado:'Calçado', acessorios:'Acessórios', higiene:'Higiene', saude:'Saúde', eletronica:'Eletrónica', documentos:'Documentos', caminho:'Para o caminho', utensilios:'Utensílios' };
+const TRANSPORTES = { aviao:['Avião','✈'], carro:['Carro','→'], comboio:['Comboio','→'] };
+const transp = t => TRANSPORTES[t.transporte] ? t.transporte : 'aviao';
 
 const Q = [
   {k:'trocas', curta:'Trocas de roupa por dia', q:'Quantas vezes trocas de roupa por dia?', h:'Conta a roupa de dia e a que vestes para jantar ou sair à noite.',
@@ -246,7 +248,7 @@ function exemplo() {
   ];
   const by = n => wardrobe.find(p => p.nome === n).id;
   return {
-    trip: { origem:'Lisboa', destino:'Munique', inicio:isoAdd(14), fim:isoAdd(19), clima:'ameno', atividades:['cidade'], lavandaria:0, bagagem:'cabine', tomada:false, longe:false, exemplo:true },
+    trip: { origem:'Lisboa', destino:'Munique', inicio:isoAdd(14), fim:isoAdd(19), clima:'ameno', atividades:['cidade'], lavandaria:0, transporte:'aviao', bagagem:'cabine', tomada:false, longe:false, exemplo:true },
     profile: { trocas:1, pijama:2, interior:1, diasTopo:1, diasBaixo:3, desporto:0, calcado:1, formal:1, margem:1, visao:'nao', medicacao:false, cuidado:[], portatil:false },
     qStep: 0, checked: {}, qtd: {}, removed: {}, custom: [], esconder: false,
     wardrobe,
@@ -394,6 +396,7 @@ function gerar() {
   const cuid = new Set(p.cuidado || []);
   const L = [];
   const add = (cat, id, nome, qtd = 1, nota = '') => { if (qtd > 0) L.push({ cat, id, nome, qtd, nota }); };
+  const tp = transp(t), aviao = tp === 'aviao', carro = tp === 'carro', cabine = aviao && t.bagagem === 'cabine';
   const cicloTxt = lav > 0 ? `ciclo de ${ciclo} dias até lavar` : `${dias} dias`;
 
   // roupa
@@ -437,7 +440,7 @@ function gerar() {
   add('acessorios','joias','Relógio e joias', 1, 'só o que usas todos os dias');
 
   // higiene
-  if (t.bagagem === 'cabine') add('higiene','liquidos','Saco transparente para líquidos', 1, 'embalagens até 100 ml, saco de 1 L; confirma a regra do aeroporto');
+  if (cabine) add('higiene','liquidos','Saco transparente para líquidos', 1, 'embalagens até 100 ml, saco de 1 L; confirma a regra do aeroporto');
   add('higiene','dentes','Escova e pasta de dentes', 1);
   add('higiene','fio','Fio dentário', 1);
   add('higiene','deo','Desodorizante', 1);
@@ -451,7 +454,7 @@ function gerar() {
   if (cuid.has('cabelo')) add('higiene','secador','Secador ou alisador', 1, 'muitos hotéis já têm secador');
 
   // saúde
-  if (p.medicacao) add('saude','medhab','Medicação habitual (dias com doses)', dias + 3, 'dias da viagem + 3 de reserva; na bagagem de mão, embalagem original e relatório em inglês');
+  if (p.medicacao) add('saude','medhab','Medicação habitual (dias com doses)', dias + 3, 'dias da viagem + 3 de reserva' + (aviao ? '; na bagagem de mão, embalagem original e relatório em inglês' : carro ? '; no carro e não na mala, longe do calor' : '; na mochila que vai contigo'));
   add('saude','analg','Analgésico / antipirético', 1);
   add('saude','aine','Anti-inflamatório', 1);
   add('saude','antihist','Anti-histamínico', 1);
@@ -465,7 +468,7 @@ function gerar() {
 
   // eletrónica
   add('eletronica','tel','Telemóvel e carregador', 1);
-  add('eletronica','powerbank','Powerbank', 1, 'sempre na bagagem de mão');
+  add('eletronica','powerbank','Powerbank', 1, aviao ? 'sempre na bagagem de mão, nunca no porão' : '');
   add('eletronica','phones','Auscultadores', 1);
   if (t.tomada) add('eletronica','adaptador','Adaptador de tomada', 1);
   if (trab) add('eletronica','portatil','Portátil e carregador', 1);
@@ -473,11 +476,24 @@ function gerar() {
 
   // documentos
   add('documentos','id', t.longe ? 'Passaporte' : 'Cartão de Cidadão ou passaporte', 1, t.longe ? 'validade de pelo menos 6 meses' : 'confirma a validade');
-  add('documentos','reservas','Cartões de embarque e reservas', 1);
+  add('documentos','reservas', aviao ? 'Cartões de embarque e reservas' : tp === 'comboio' ? 'Bilhetes de comboio e reservas' : 'Reservas de alojamento', 1);
   add('documentos','cartoes','Cartões bancários e algum dinheiro', 1);
   if (!t.longe) add('documentos','cesd','Cartão Europeu de Seguro de Doença', 1);
   if (t.longe) { add('documentos','seguro','Seguro de viagem', 1); add('documentos','vacinas','Boletim de vacinas', 1, 'consulta do viajante semanas antes da partida'); }
-  add('documentos','carta','Carta de condução', 1, 'se vais alugar carro');
+  add('documentos','carta','Carta de condução', 1, carro ? '' : 'se vais alugar carro');
+  if (carro) add('documentos','docscarro','Documentos do carro (DUA e seguro)', 1);
+
+  // para o caminho
+  if (carro) {
+    add('caminho','colete','Colete refletor e triângulo', 1, 'obrigatórios no carro');
+    add('caminho','carregcarro','Carregador de telemóvel para o carro', 1);
+    add('caminho','suportecarro','Suporte de telemóvel para o carro', 1);
+    add('caminho','portagens','Via Verde ou forma de pagar portagens', 1);
+    add('caminho','snacks','Água e snacks para a viagem', 1);
+    if (t.longe) add('caminho','cartaverde','Seguro válido no país de destino', 1, 'confirma a cobertura com a seguradora');
+  }
+  if (aviao) add('caminho','checkin','Check-in online feito', 1, 'e cartão de embarque no telemóvel');
+  if (!carro) add('caminho','casaco-viagem','Camada quente para vestir na viagem', 1, 'avião e comboio costumam ter ar condicionado forte');
 
   // utensílios
   add('utensilios','sujo','Saco para roupa suja', 1);
@@ -486,8 +502,8 @@ function gerar() {
   add('utensilios','sono','Tampões de ouvidos e máscara de dormir', 1);
   add('utensilios','zip','Sacos zip', 1);
   if (lav > 0) add('utensilios','detergente','Detergente de viagem', 1);
-  if (t.bagagem === 'porao') add('utensilios','cadeado','Cadeado TSA', 1);
-  if (t.longe || noites > 7) add('utensilios','almofada','Almofada de viagem', 1);
+  if (aviao && t.bagagem === 'porao') add('utensilios','cadeado','Cadeado TSA', 1);
+  if (!carro && (t.longe || noites > 7)) add('caminho','almofada','Almofada de viagem', 1);
 
   // itens próprios
   S.custom.forEach(c => L.push({ cat: c.cat, id: 'c-' + c.id, nome: c.nome, qtd: c.qtd, nota: 'adicionado por ti', custom: true }));
@@ -539,18 +555,19 @@ function renderPass() {
   $('#pass').innerHTML = `<div class="pass"><div class="pass-in">
     <div class="pass-top"><span class="brand">Mala Feita</span>${t.exemplo ? '<span class="tag-ex">Exemplo · edita em Viagem</span>' : ''}</div>
     <a class="conta ${SY.estado}" href="#habitos" style="text-decoration:none"><i></i>${SY.estado === 'ok' ? 'Sincronizado' + (SY.nome ? ' · ' + esc(SY.nome) : '') : SY.estado === 'erro' ? 'Erro de sincronização' : 'Só neste aparelho'}</a>
-    <div class="route"><div>${codigo(t.origem)}<small>${esc(t.origem) || 'Origem'}</small></div><span class="arr">✈</span><div>${codigo(t.destino)}<small>${esc(t.destino) || 'Destino'}</small></div></div>
+    <div class="route"><div>${codigo(t.origem)}<small>${esc(t.origem) || 'Origem'}</small></div><span class="arr">${TRANSPORTES[transp(t)][1]}</span><div>${codigo(t.destino)}<small>${esc(t.destino) || 'Destino'}</small></div></div>
     <div class="pass-meta">
       <div><span class="label">Partida</span><b>${fmtData(t.inicio)}</b></div>
       <div><span class="label">Regresso</span><b>${fmtData(t.fim)}</b></div>
       <div><span class="label">Noites</span><b>${noites}</b></div>
+      <div><span class="label">Transporte</span><b>${TRANSPORTES[transp(t)][0]}</b></div>
       <div><span class="label">Clima</span><b>${clima}</b></div>
       <div><span class="label">Na mala</span><b>${feitos}/${r.itens.length}</b></div>
     </div></div></div>`;
 }
 
 function renderViagem() {
-  const t = S.trip;
+  const t = { ...S.trip, transporte: transp(S.trip) };
   const segs = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-act="trip" data-k="${k}" data-v="${v}" aria-pressed="${String(t[k]) === String(v)}">${l}</button>`).join('')}</div>`;
   const ats = [['cidade','Cidade e passeios'],['praia','Praia ou piscina'],['montanha','Caminhadas'],['neve','Neve'],['trabalho','Trabalho ou congresso']];
   return `<section class="block">
@@ -564,12 +581,14 @@ function renderViagem() {
     </section>
     <section class="block"><h3>Clima previsto</h3>${segs('clima', [['quente','Quente'],['ameno','Ameno'],['frio','Frio'],['misto','Variável / chuva']])}</section>
     <section class="block"><h3>O que vais fazer</h3><div class="seg">${ats.map(([v, l]) => `<button type="button" data-act="ativ" data-v="${v}" aria-pressed="${t.atividades.includes(v)}">${l}</button>`).join('')}</div></section>
+    <section class="block"><h3>Como vais</h3>${segs('transporte', [['aviao','Avião'],['carro','Carro'],['comboio','Comboio']])}
+      <p class="muted small">${transp(t) === 'carro' ? 'De carro não há limite de líquidos nem de peso. O limite é o espaço na bagageira, e a lista junta os documentos e o equipamento obrigatório do carro.' : transp(t) === 'comboio' ? 'De comboio não há regra de líquidos, mas és tu que carregas a mala nas escadas e nas plataformas.' : 'De avião a lista respeita as regras da bagagem de cabine: líquidos, powerbank e medicação na bagagem de mão.'}</p></section>
     <section class="block"><h3>Lavandaria e bagagem</h3>
       <div class="grid2">
         <label class="field"><span class="label">Vais lavar roupa?</span><select id="t-lav" data-bind="lavandaria">
           ${[[0,'Não'],[3,'Sim, a cada 3 dias'],[4,'Sim, a cada 4 dias'],[5,'Sim, a cada 5 dias'],[7,'Sim, uma vez por semana']].map(([v, l]) => `<option value="${v}" ${+t.lavandaria === v ? 'selected' : ''}>${l}</option>`).join('')}
         </select></label>
-        <div class="field"><span class="label">Bagagem</span>${segs('bagagem', [['cabine','Só cabine'],['porao','Mala de porão']])}</div>
+        ${transp(t) === 'aviao' ? `<div class="field"><span class="label">Bagagem</span>${segs('bagagem', [['cabine','Só cabine'],['porao','Mala de porão']])}</div>` : ''}
       </div>
       <label class="check"><input type="checkbox" id="t-tomada" data-bind="tomada" ${t.tomada ? 'checked' : ''}><span>O destino usa outra tomada <span class="muted small">(Reino Unido, EUA, Suíça…)</span></span></label>
       <label class="check"><input type="checkbox" id="t-longe" data-bind="longe" ${t.longe ? 'checked' : ''}><span>Fora da Europa ou destino tropical <span class="muted small">(passaporte, seguro, kit de saúde alargado)</span></span></label>
@@ -629,7 +648,7 @@ function renderLista() {
     notas.push(['', `São ${r.dias} dias sem lavar roupa. Levas ${agora} mudas de roupa interior; com uma lavagem a cada 4 dias passavas para ${com}. Muda em Viagem se fizer sentido.`]);
   }
   if (r.pedidos.length > +S.profile.calcado) notas.push(['warn', `As atividades pedem ${r.pedidos.length} pares de calçado e o teu limite é ${S.profile.calcado}. Ou sobes o limite ou escolhes o que levas calçado para cobrir um deles.`]);
-  if (S.trip.bagagem === 'cabine') {
+  if (transp(S.trip) === 'aviao' && S.trip.bagagem === 'cabine') {
     const pequenas = new Set(['interior','meias','meiasdesp','meiastermicas','luvas','gorro','gola']);
     const roupa = it.filter(i => i.cat === 'roupa' && !pequenas.has(i.id)).reduce((a, i) => a + i.qtd, 0);
     if (roupa > 18) notas.push(['warn', `${roupa} peças de roupa (sem contar roupa interior e meias) numa mala de cabine é muito. Reduz a margem de segurança ou planeia uma lavagem.`]);
