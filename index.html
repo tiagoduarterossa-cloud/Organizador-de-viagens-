@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mala Feita</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=JetBrains+Mono:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: cabeçalho em forma de cartão de embarque, separadores fixos, uma coluna até 780px; cartões só para objetos (peças, outfits, perguntas) */
+:root{
+  --paper:#ECEFF3; --card:#FFFFFF; --soft:#E1E7EE; --line:#CFD7E0;
+  --ink:#15202B; --muted:#586676; --sign:#F4B400; --sign-ink:#15202B;
+  --sky:#2B63A3; --ok:#2F7D52; --warn:#B54708;
+  --pass-bg:#15202B; --pass-fg:#EEF2F6; --pass-muted:#9FB0C2;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0E141B; --card:#17202A; --soft:#1F2A35; --line:#2C3946;
+  --ink:#E5EBF1; --muted:#97A6B6; --sign:#F4B400; --sign-ink:#15202B;
+  --sky:#79AEEA; --ok:#5DBB86; --warn:#F08A4B;
+  --pass-bg:#1C2733; --pass-fg:#EEF2F6; --pass-muted:#9FB0C2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0E141B; --card:#17202A; --soft:#1F2A35; --line:#2C3946;
+  --ink:#E5EBF1; --muted:#97A6B6; --sign:#F4B400; --sign-ink:#15202B;
+  --sky:#79AEEA; --ok:#5DBB86; --warn:#F08A4B;
+  --pass-bg:#1C2733; --pass-fg:#EEF2F6; --pass-muted:#9FB0C2; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.wrap{max-width:780px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 72px}
+h1,h2,h3{font-family:var(--f-display);font-stretch:88%;text-wrap:balance;margin:0;line-height:1.15}
+h2{font-size:1.45rem;font-weight:750}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+.label{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+section.block{display:flex;flex-direction:column;gap:14px;padding-block:22px;border-top:1px solid var(--line)}
+section.block:first-child{border-top:0;padding-top:6px}
+
+/* cartão de embarque */
+.pass{background:var(--pass-bg);color:var(--pass-fg);border-radius:14px;display:grid;grid-template-columns:10px 1fr;overflow:hidden}
+.pass::before{content:"";background:var(--sign)}
+.pass-in{padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.pass-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.brand{font-family:var(--f-display);font-weight:800;font-stretch:115%;letter-spacing:.02em;font-size:1rem;text-transform:uppercase}
+.route{display:flex;align-items:center;gap:14px;font-family:var(--f-mono);font-weight:700;font-size:clamp(2rem,9vw,3rem);letter-spacing:.04em;line-height:1}
+.route .arr{color:var(--sign);font-size:.6em}
+.route small{display:block;font-family:var(--f-body);font-weight:400;font-size:.8rem;letter-spacing:0;color:var(--pass-muted);margin-top:6px;max-width:16ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pass-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;border-top:1px dashed #ffffff33;padding-top:12px}
+.pass-meta div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pass-meta .label{color:var(--pass-muted)}
+.pass-meta b{font-family:var(--f-mono);font-size:.95rem;font-variant-numeric:tabular-nums}
+.tag-ex{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--sign);color:var(--sign-ink);padding:2px 7px;border-radius:4px;font-weight:700}
+
+/* separadores */
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-block:12px 10px;margin-bottom:6px}
+nav.tabs a{text-decoration:none;color:var(--muted);text-align:center;padding:9px 4px;border-radius:8px;font-weight:700;font-size:.95rem;border:1px solid var(--line);background:var(--card)}
+nav.tabs a[aria-current="page"]{background:var(--sign);color:var(--sign-ink);border-color:var(--sign)}
+nav.tabs a span{display:block;font-family:var(--f-mono);font-size:.65rem;letter-spacing:.06em;font-weight:500;opacity:.8}
+
+/* formulários */
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+input[type=text],input[type=date],input[type=number],select,textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+textarea{min-height:90px;font-family:var(--f-mono);font-size:.8rem}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.chipbtn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 13px;font-weight:600}
+.seg button[aria-pressed="true"],.chipbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--ok);flex:none}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:8px;padding:9px 15px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.sign{background:var(--sign);border-color:var(--sign);color:var(--sign-ink)}
+.btn.danger{background:transparent;color:var(--warn);border-color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.x{border:0;background:transparent;color:var(--muted);font-size:1.1rem;line-height:1;padding:4px 6px;border-radius:6px}
+.x:hover{color:var(--warn)}
+
+/* perguntas */
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:16px}
+.qcard h2{font-size:clamp(1.35rem,4.6vw,1.8rem)}
+.bar{height:6px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--sign)}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.opt{border:1.5px solid var(--line);background:var(--paper);border-radius:10px;padding:13px 12px;text-align:left;font-weight:600;display:flex;flex-direction:column;gap:2px}
+.opt small{font-weight:400;color:var(--muted);font-size:.82rem}
+.opt[aria-pressed="true"]{border-color:var(--sign);background:color-mix(in srgb,var(--sign) 22%,var(--card))}
+.resumo{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+.resumo button{display:flex;justify-content:space-between;gap:12px;border:0;border-top:1px solid var(--line);background:transparent;padding:11px 14px;text-align:left}
+.resumo button:first-child{border-top:0}
+.resumo b{text-align:right}
+
+/* lista */
+.progress{display:flex;align-items:center;gap:12px}
+.progress .bar{flex:1;height:10px}
+.progress b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.cat{display:flex;flex-direction:column}
+.cat-h{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.cat-h .label{color:var(--ink)}
+.item{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.item .nm{min-width:0}
+.item .nm small{display:block;color:var(--muted);font-size:.82rem}
+.item.done .nm span{text-decoration:line-through;color:var(--muted)}
+.item input[type=checkbox]{width:22px;height:22px;accent-color:var(--ok)}
+.qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.qty button{border:0;background:transparent;width:28px;height:30px;font-weight:700}
+.qty b{font-family:var(--f-mono);min-width:26px;text-align:center;font-variant-numeric:tabular-nums}
+.nota{border-left:4px solid var(--sign);background:var(--card);padding:11px 14px;border-radius:0 8px 8px 0}
+.nota.warn{border-left-color:var(--warn)}
+
+/* outfits */
+.sw{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid #0000002a;flex:none;vertical-align:-2px}
+.pieces{display:flex;flex-wrap:wrap;gap:6px}
+.piece{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 6px 5px 10px;font-weight:600;font-size:.92rem;max-width:100%}
+.piece > button.pick{border:0;background:transparent;display:inline-flex;align-items:center;gap:7px;padding:0;font-weight:600;text-align:left;min-width:0}
+.piece.on{border-color:var(--sign);background:color-mix(in srgb,var(--sign) 22%,var(--card))}
+.piece .ex{font-family:var(--f-mono);font-size:.62rem;color:var(--muted);letter-spacing:.05em}
+.builder{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.slot{border:1.5px dashed var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px;min-height:64px}
+.slot.full{border-style:solid;border-color:var(--ink)}
+.slot b{display:flex;gap:6px;align-items:center;font-size:.92rem}
+.verdict{font-weight:600}
+.verdict.ok{color:var(--ok)} .verdict.warn{color:var(--warn)}
+.outfits{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.ocard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ocard .strip{display:flex;height:10px;border-radius:4px;overflow:hidden}
+.ocard .strip i{flex:1}
+.ocard ul{margin:0;padding-left:18px;font-size:.88rem;color:var(--muted)}
+.plan{display:flex;flex-direction:column}
+.pday{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.pday .d{font-family:var(--f-mono);font-size:.85rem}
+.pday .sel{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;min-width:0}
+.stat{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+table.cmp{border-collapse:collapse;width:100%;font-size:.92rem}
+table.cmp th,table.cmp td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+table.cmp td.n{font-family:var(--f-mono);text-align:right}
+.tw{overflow-x:auto}
+@media (max-width:460px){.pday{grid-template-columns:1fr}.item{grid-template-columns:auto 1fr auto}.item .x{grid-column:3}.item .qty{grid-column:2;justify-self:start}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header id="pass"></header>
+  <nav class="tabs" id="tabs">
+    <a href="#viagem" data-tab="viagem">Viagem<span>01 rota</span></a>
+    <a href="#habitos" data-tab="habitos">Hábitos<span>02 perfil</span></a>
+    <a href="#lista" data-tab="lista">Mala<span>03 lista</span></a>
+    <a href="#outfits" data-tab="outfits">Outfits<span>04 conjugar</span></a>
+  </nav>
+  <main id="main"></main>
+</div>
+<script>
+const LS = 'mala-feita-v1';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const isoAdd = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+
+/* ---------- dados de referência ---------- */
+const CORES = {
+  preto:['Preto','#1d1d1f'], branco:['Branco','#f6f6f3'], cinzento:['Cinzento','#9aa0a6'], marinho:['Azul-marinho','#1f2f4d'],
+  bege:['Bege','#d8c3a0'], castanho:['Castanho','#6b4a2f'], ganga:['Ganga','#4a6a8f'], oliva:['Verde-oliva','#6b6b3a'],
+  azul:['Azul-claro','#8fb8e0'], verde:['Verde','#3f8a55'], vermelho:['Vermelho','#c0392b'], bordeaux:['Bordeaux','#6d1f2c'],
+  rosa:['Rosa','#e8a0b4'], amarelo:['Amarelo','#e8c547'], laranja:['Laranja','#e07a3a'], roxo:['Roxo','#6c4f9e'],
+  padrao:['Padrão / estampado','repeating-linear-gradient(45deg,#c0392b 0 3px,#f6f6f3 3px 6px)']
+};
+const NEUTRAS = new Set(['preto','branco','cinzento','marinho','bege','castanho','ganga','oliva']);
+const TIPOS = { cima:'Parte de cima', baixo:'Parte de baixo', unica:'Vestido / peça única', camada:'Casaco / camada', calcado:'Calçado', acessorio:'Acessório' };
+const OCASIOES = { casual:'Casual', trabalho:'Trabalho', formal:'Formal / jantar', desporto:'Desporto', praia:'Praia' };
+const CATS = { roupa:'Roupa', calcado:'Calçado', acessorios:'Acessórios', higiene:'Higiene', saude:'Saúde', eletronica:'Eletrónica', documentos:'Documentos', utensilios:'Utensílios' };
+
+const Q = [
+  {k:'trocas', curta:'Trocas de roupa por dia', q:'Quantas vezes trocas de roupa por dia?', h:'Conta a roupa de dia e a que vestes para jantar ou sair à noite.',
+    o:[[1,'Uma vez','A mesma roupa o dia todo'],[2,'Duas vezes','Dia e noite'],[3,'Três ou mais','Inclui mudar depois do calor ou ginásio']]},
+  {k:'pijama', curta:'Pijamas por semana', q:'Quantos pijamas usas por semana?', h:'Em viagem quase toda a gente usa menos do que leva.',
+    o:[[0,'Não uso pijama',''],[1,'Um',''],[2,'Dois',''],[3,'Três',''],[7,'Um por noite','']]},
+  {k:'interior', curta:'Roupa interior por dia', q:'Quantas mudas de roupa interior usas por dia?', h:'',
+    o:[[1,'Uma',''],[2,'Duas','Calor, desporto ou duche à noite']]},
+  {k:'diasTopo', curta:'Dias por parte de cima', q:'Quantos dias repetes uma t-shirt, camisa ou blusa?', h:'Seja honesto: muita gente diz 1 e acaba por repetir.',
+    o:[[1,'Só um dia',''],[2,'Dois dias',''],[3,'Três dias','Lã merino ou clima frio']]},
+  {k:'diasBaixo', curta:'Dias por calça ou saia', q:'E calças, calções ou saias, quantos dias usas antes de lavar?', h:'',
+    o:[[1,'Um dia',''],[2,'Dois dias',''],[3,'Três dias',''],[5,'Quatro a cinco','Ganga e chinos aguentam']]},
+  {k:'desporto', curta:'Exercício por semana', q:'Fazes exercício quando viajas?', h:'Corrida, ginásio do hotel, natação.',
+    o:[[0,'Não',''],[2,'1 a 2 vezes por semana',''],[4,'3 a 4 vezes por semana',''],[7,'Todos os dias','']]},
+  {k:'calcado', curta:'Pares de calçado extra', q:'Quantos pares de calçado levas, além dos que vais calçado?', h:'O calçado é o que mais pesa e ocupa. Este número vira o teu limite.',
+    o:[[0,'Nenhum','Só os que levo calçados'],[1,'Um par',''],[2,'Dois pares',''],[3,'Três ou mais','']]},
+  {k:'formal', curta:'Jantares / eventos formais', q:'Costumas ter jantares ou eventos mais formais?', h:'',
+    o:[[0,'Nunca',''],[1,'Às vezes','Um por viagem'],[2,'Com frequência','Um a cada poucos dias']]},
+  {k:'margem', curta:'Margem de segurança', q:'Quantas peças extra gostas de levar "para o caso de"?', h:'Aplica-se a roupa interior e partes de cima. É aqui que se enche a mala.',
+    o:[[0,'Nenhuma','Lavo se precisar'],[1,'Mais uma',''],[2,'Mais duas','']]},
+  {k:'visao', curta:'Óculos / lentes', q:'Usas óculos ou lentes de contacto?', h:'',
+    o:[['nao','Nenhum',''],['oculos','Óculos',''],['lentes','Lentes de contacto',''],['ambos','Os dois','']]},
+  {k:'medicacao', curta:'Medicação habitual', q:'Tomas medicação de forma regular?', h:'Se sim, a lista calcula as doses com reserva.',
+    o:[[false,'Não',''],[true,'Sim','']]},
+  {k:'cuidado', curta:'Cuidado pessoal', multi:true, q:'O que faz parte da tua rotina de cuidado pessoal?', h:'Podes escolher várias.',
+    o:[['barba','Barbear',''],['maquilhagem','Maquilhagem',''],['cabelo','Secador ou alisador',''],['skincare','Skincare / cremes','']]},
+  {k:'portatil', curta:'Trabalho na viagem', q:'Trabalhas durante as viagens?', h:'',
+    o:[[false,'Não',''],[true,'Sim, levo portátil','']]}
+];
+
+/* ---------- estado ---------- */
+function exemplo() {
+  const w = (nome, tipo, cor, ocasiao) => ({ id: uid(), nome, tipo, cor, ocasiao, ex: true });
+  const wardrobe = [
+    w('Camisa branca','cima','branco','trabalho'), w('T-shirt cinzenta','cima','cinzento','casual'),
+    w('Polo azul-marinho','cima','marinho','casual'), w('Camisola verde','cima','verde','casual'),
+    w('Calças de ganga','baixo','ganga','casual'), w('Chinos bege','baixo','bege','trabalho'),
+    w('Blazer azul-marinho','camada','marinho','formal'), w('Ténis brancos','calcado','branco','casual'),
+    w('Sapatos castanhos','calcado','castanho','formal'), w('Cinto castanho','acessorio','castanho','formal')
+  ];
+  const by = n => wardrobe.find(p => p.nome === n).id;
+  return {
+    trip: { origem:'Lisboa', destino:'Munique', inicio:isoAdd(14), fim:isoAdd(19), clima:'ameno', atividades:['cidade'], lavandaria:0, bagagem:'cabine', tomada:false, longe:false, exemplo:true },
+    profile: { trocas:1, pijama:2, interior:1, diasTopo:1, diasBaixo:3, desporto:0, calcado:1, formal:1, margem:1, visao:'nao', medicacao:false, cuidado:[], portatil:false },
+    qStep: 0, checked: {}, qtd: {}, removed: {}, custom: [], esconder: false,
+    wardrobe,
+    outfits: [
+      { id: uid(), nome:'Passeio na cidade', pecas:[by('T-shirt cinzenta'), by('Calças de ganga'), by('Ténis brancos')], ex:true },
+      { id: uid(), nome:'Jantar', pecas:[by('Camisa branca'), by('Chinos bege'), by('Blazer azul-marinho'), by('Sapatos castanhos'), by('Cinto castanho')], ex:true }
+    ],
+    plan: {}, builder: {}, filtro: '', oNome: ''
+  };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
+if (!S || !S.trip) S = exemplo();
+S = Object.assign(exemplo(), S);
+S.builder = S.builder || {};
+function save() { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} }
+
+/* ---------- cálculos ---------- */
+function duracao(t) {
+  const a = new Date(t.inicio + 'T12:00'), b = new Date(t.fim + 'T12:00');
+  let n = Math.round((b - a) / 864e5);
+  if (!isFinite(n) || n < 0) n = 0;
+  return { noites: n, dias: n + 1 };
+}
+const codigo = s => (String(s || '---').normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || '---').padEnd(3, '-');
+const fmtData = iso => { const d = new Date(iso + 'T12:00'); return isNaN(d) ? '—' : d.toLocaleDateString('pt-PT', { day:'numeric', month:'short' }); };
+const peca = id => S.wardrobe.find(p => p.id === id);
+
+function pecasDoPlano() {
+  const { dias } = duracao(S.trip), ids = new Set();
+  for (const [k, oid] of Object.entries(S.plan)) {
+    if (+k.split('-')[0] >= dias) continue;
+    const o = S.outfits.find(x => x.id === oid);
+    if (o) o.pecas.forEach(id => peca(id) && ids.add(id));
+  }
+  return [...ids].map(peca);
+}
+
+function gerar() {
+  const t = S.trip, p = S.profile, { noites, dias } = duracao(t);
+  const lav = +t.lavandaria || 0;
+  const ciclo = lav > 0 ? Math.min(dias, lav) : dias;
+  const cicloN = Math.max(1, lav > 0 ? Math.min(noites, lav) : noites);
+  const m = +p.margem || 0, tr = +p.trocas || 1;
+  const at = new Set(t.atividades || []);
+  const neve = at.has('neve'), praia = at.has('praia'), mont = at.has('montanha'), trab = at.has('trabalho') || p.portatil;
+  const quente = t.clima === 'quente', frio = t.clima === 'frio' || neve, misto = t.clima === 'misto';
+  const cuid = new Set(p.cuidado || []);
+  const L = [];
+  const add = (cat, id, nome, qtd = 1, nota = '') => { if (qtd > 0) L.push({ cat, id, nome, qtd, nota }); };
+  const cicloTxt = lav > 0 ? `ciclo de ${ciclo} dias até lavar` : `${dias} dias`;
+
+  // roupa
+  add('roupa','interior','Roupa interior', Math.ceil(ciclo * p.interior) + m, cicloTxt);
+  add('roupa','meias','Meias (pares)', ciclo + m);
+  add('roupa','topo','Partes de cima', Math.ceil(ciclo * tr / p.diasTopo) + m, quente ? 'tecidos leves, linho ou algodão' : '');
+  const baixo = Math.max(1, Math.ceil(ciclo * tr / p.diasBaixo));
+  if (quente || praia) { const c = Math.ceil(baixo / 2); add('roupa','calcoes','Calções ou saias leves', c); add('roupa','baixo','Calças ou saias', Math.max(1, baixo - c)); }
+  else add('roupa','baixo','Calças ou saias', baixo);
+  if (+p.pijama > 0) add('roupa','pijama','Pijama', Math.max(1, Math.ceil(cicloN * p.pijama / 7)));
+  if (frio) add('roupa','malha','Camisolas de malha ou polar', Math.min(3, Math.max(1, Math.ceil(ciclo / 3))));
+  else if (!quente || misto) add('roupa','malha','Camisola leve', 1);
+  if (frio) add('roupa','casaco','Casaco quente', 1);
+  else if (!quente) add('roupa','casaco','Casaco leve ou blazer', 1);
+  if (misto || frio || mont) add('roupa','impermeavel','Impermeável ou corta-vento', 1);
+  const sess = p.desporto > 0 ? Math.min(ciclo, Math.ceil(ciclo * p.desporto / 7)) : 0;
+  if (sess) { add('roupa','desporto','Conjuntos de desporto', Math.min(sess, 3), sess > 3 ? 'lava no duche e reutiliza' : ''); add('roupa','meiasdesp','Meias de desporto', Math.min(sess, 3)); }
+  if (p.formal > 0 || trab) add('roupa','formal','Conjunto formal (fato, vestido)', p.formal == 2 ? Math.max(1, Math.ceil(dias / 4)) : 1, trab ? 'reuniões / congresso' : '');
+  if (praia) { add('roupa','banho','Fato de banho ou biquíni', dias > 3 ? 2 : 1); add('roupa','saida','Saída de praia ou kaftan', 1); }
+  if (neve) { add('roupa','termica','Camada térmica', Math.min(3, Math.ceil(ciclo / 2))); add('roupa','meiastermicas','Meias térmicas', Math.min(4, ciclo)); add('roupa','luvas','Luvas', 1); add('roupa','gorro','Gorro', 1); add('roupa','gola','Cachecol ou gola', 1); }
+  pecasDoPlano().forEach(pc => add('roupa', 'w-' + pc.id, pc.nome, 1, 'do plano de outfits · ' + TIPOS[pc.tipo].toLowerCase()));
+
+  // calçado
+  const pedidos = [];
+  if (sess) pedidos.push(['tenis','Ténis de desporto']);
+  if (p.formal > 0 || trab) pedidos.push(['sapformais','Sapatos formais']);
+  if (mont) pedidos.push(['botas','Botas de caminhada']);
+  if (neve) pedidos.push(['botasneve','Botas impermeáveis']);
+  if (praia) pedidos.push(['chinelos','Chinelos']);
+  pedidos.forEach(([id, n]) => add('calcado', id, n, 1));
+  const livres = Math.max(0, +p.calcado - pedidos.length);
+  if (livres) add('calcado','calcadoextra','Par extra à escolha', livres);
+
+  // acessórios
+  add('acessorios','oculossol','Óculos de sol', 1);
+  add('acessorios','cinto','Cinto', 1);
+  if (quente || praia) add('acessorios','chapeu','Chapéu ou boné', 1);
+  if (!quente && !neve) add('acessorios','chuva','Guarda-chuva compacto', 1);
+  if (at.has('cidade') || mont) add('acessorios','mochila','Mochila de dia', 1);
+  if (praia) add('acessorios','sacopraia','Saco e toalha de praia', 1);
+  add('acessorios','joias','Relógio e joias', 1, 'só o que usas todos os dias');
+
+  // higiene
+  if (t.bagagem === 'cabine') add('higiene','liquidos','Saco transparente para líquidos', 1, 'embalagens até 100 ml, saco de 1 L; confirma a regra do aeroporto');
+  add('higiene','dentes','Escova e pasta de dentes', 1);
+  add('higiene','fio','Fio dentário', 1);
+  add('higiene','deo','Desodorizante', 1);
+  add('higiene','champo','Champô e gel de banho', 1, dias <= 4 ? 'o hotel costuma ter' : '');
+  add('higiene','pente','Escova ou pente', 1);
+  add('higiene','unhas','Corta-unhas', dias > 7 ? 1 : 0);
+  add('higiene','labial','Protetor labial', 1);
+  if (cuid.has('barba')) { add('higiene','lamina','Máquina ou lâmina de barbear', 1); add('higiene','espuma','Espuma ou gel de barbear', 1); }
+  if (cuid.has('maquilhagem')) { add('higiene','maquilhagem','Necessaire de maquilhagem', 1); add('higiene','desmaq','Desmaquilhante', 1); }
+  if (cuid.has('skincare')) add('higiene','skincare','Hidratante e skincare', 1);
+  if (cuid.has('cabelo')) add('higiene','secador','Secador ou alisador', 1, 'muitos hotéis já têm secador');
+
+  // saúde
+  if (p.medicacao) add('saude','medhab','Medicação habitual (dias com doses)', dias + 3, 'dias da viagem + 3 de reserva; na bagagem de mão, embalagem original e relatório em inglês');
+  add('saude','analg','Analgésico / antipirético', 1);
+  add('saude','aine','Anti-inflamatório', 1);
+  add('saude','antihist','Anti-histamínico', 1);
+  add('saude','pensos','Pensos e antisséptico', 1);
+  if (quente || praia || neve || mont) add('saude','fps','Protetor solar', 1);
+  if (quente || t.longe) add('saude','repelente','Repelente de insetos', 1);
+  if (t.longe) { add('saude','sro','Sais de reidratação oral', 1); add('saude','antidiarr','Antidiarreico', 1); }
+  if (p.visao === 'oculos' || p.visao === 'ambos') add('saude','oculos','Óculos e estojo', 1);
+  if (p.visao === 'lentes' || p.visao === 'ambos') { add('saude','lentes','Lentes de contacto (dias)', dias + 2, 'diárias: dias + 2'); add('saude','solucao','Solução e estojo de lentes', 1); }
+  if (p.visao === 'lentes') add('saude','oculosres','Óculos de reserva', 1);
+
+  // eletrónica
+  add('eletronica','tel','Telemóvel e carregador', 1);
+  add('eletronica','powerbank','Powerbank', 1, 'sempre na bagagem de mão');
+  add('eletronica','phones','Auscultadores', 1);
+  if (t.tomada) add('eletronica','adaptador','Adaptador de tomada', 1);
+  if (trab) add('eletronica','portatil','Portátil e carregador', 1);
+  if (dias > 3) add('eletronica','usb','Carregador USB com várias saídas', 1);
+
+  // documentos
+  add('documentos','id', t.longe ? 'Passaporte' : 'Cartão de Cidadão ou passaporte', 1, t.longe ? 'validade de pelo menos 6 meses' : 'confirma a validade');
+  add('documentos','reservas','Cartões de embarque e reservas', 1);
+  add('documentos','cartoes','Cartões bancários e algum dinheiro', 1);
+  if (!t.longe) add('documentos','cesd','Cartão Europeu de Seguro de Doença', 1);
+  if (t.longe) { add('documentos','seguro','Seguro de viagem', 1); add('documentos','vacinas','Boletim de vacinas', 1, 'consulta do viajante semanas antes da partida'); }
+  add('documentos','carta','Carta de condução', 1, 'se vais alugar carro');
+
+  // utensílios
+  add('utensilios','sujo','Saco para roupa suja', 1);
+  add('utensilios','cubos','Cubos de organização', 1);
+  add('utensilios','garrafa','Garrafa reutilizável', 1);
+  add('utensilios','sono','Tampões de ouvidos e máscara de dormir', 1);
+  add('utensilios','zip','Sacos zip', 1);
+  if (lav > 0) add('utensilios','detergente','Detergente de viagem', 1);
+  if (t.bagagem === 'porao') add('utensilios','cadeado','Cadeado TSA', 1);
+  if (t.longe || noites > 7) add('utensilios','almofada','Almofada de viagem', 1);
+
+  // itens próprios
+  S.custom.forEach(c => L.push({ cat: c.cat, id: 'c-' + c.id, nome: c.nome, qtd: c.qtd, nota: 'adicionado por ti', custom: true }));
+
+  const out = L.filter(i => !S.removed[i.id]).map(i => ({ ...i, qtd: S.qtd[i.id] ?? i.qtd }));
+  return { itens: out, dias, noites, ciclo, lav, pedidos, sess };
+}
+
+/* ---------- avaliação de outfits ---------- */
+function avaliar(pecas) {
+  pecas = pecas.filter(Boolean);
+  if (pecas.length < 2) return ['', 'Escolhe pelo menos duas peças.'];
+  const fortes = new Set(pecas.filter(p => !NEUTRAS.has(p.cor) && p.cor !== 'padrao').map(p => p.cor));
+  const padroes = pecas.filter(p => p.cor === 'padrao').length;
+  const oc = new Set(pecas.map(p => p.ocasiao));
+  if (padroes > 1) return ['warn', 'Dois padrões juntos raramente resulta. Troca um por uma peça lisa.'];
+  if (fortes.size > 2) return ['warn', 'Muitas cores fortes. Fica com uma de destaque e o resto neutro.'];
+  if (oc.has('desporto') && oc.has('formal')) return ['warn', 'Estás a misturar desporto com formal.'];
+  if (fortes.size + padroes === 0) return ['ok', 'Tudo neutro: combina sempre, mas é seguro. Um acessório com cor dava vida.'];
+  return ['ok', 'Boa conjugação: base neutra com ' + (fortes.size + padroes === 1 ? 'um ponto' : 'dois pontos') + ' de cor.'];
+}
+function bPecas() { return ['cima','baixo','unica','camada','calcado','acessorio'].map(k => peca(S.builder[k])).filter(Boolean); }
+function sugerir() {
+  const f = S.filtro, pool = t => S.wardrobe.filter(p => p.tipo === t && (!f || p.ocasiao === f || (t !== 'cima' && t !== 'baixo' && t !== 'unica' && p.ocasiao === 'casual')));
+  const pick = a => a.length ? a[Math.floor(Math.random() * a.length)] : null;
+  let melhor = null;
+  for (let i = 0; i < 40; i++) {
+    const cima = pool('cima'), unica = pool('unica');
+    const usaUnica = unica.length && Math.random() < unica.length / (unica.length + cima.length);
+    const b = usaUnica ? { unica: pick(unica) } : { cima: pick(cima), baixo: pick(pool('baixo')) };
+    b.calcado = pick(pool('calcado'));
+    if (Math.random() < .5 || S.trip.clima === 'frio') b.camada = pick(pool('camada'));
+    if (Math.random() < .5) b.acessorio = pick(pool('acessorio'));
+    const v = avaliar(Object.values(b));
+    melhor = b;
+    if (v[0] === 'ok') break;
+  }
+  S.builder = {};
+  if (melhor) for (const [k, p] of Object.entries(melhor)) if (p) S.builder[k] = p.id;
+}
+
+/* ---------- render ---------- */
+function sw(cor) { const c = CORES[cor] || CORES.cinzento; return `<i class="sw" style="background:${c[1]}"></i>`; }
+
+function renderPass() {
+  const t = S.trip, { noites } = duracao(t), r = gerar();
+  const feitos = r.itens.filter(i => S.checked[i.id]).length;
+  const clima = { quente:'Quente', ameno:'Ameno', frio:'Frio', misto:'Variável' }[t.clima];
+  $('#pass').innerHTML = `<div class="pass"><div class="pass-in">
+    <div class="pass-top"><span class="brand">Mala Feita</span>${t.exemplo ? '<span class="tag-ex">Exemplo · edita em Viagem</span>' : ''}</div>
+    <div class="route"><div>${codigo(t.origem)}<small>${esc(t.origem) || 'Origem'}</small></div><span class="arr">✈</span><div>${codigo(t.destino)}<small>${esc(t.destino) || 'Destino'}</small></div></div>
+    <div class="pass-meta">
+      <div><span class="label">Partida</span><b>${fmtData(t.inicio)}</b></div>
+      <div><span class="label">Regresso</span><b>${fmtData(t.fim)}</b></div>
+      <div><span class="label">Noites</span><b>${noites}</b></div>
+      <div><span class="label">Clima</span><b>${clima}</b></div>
+      <div><span class="label">Na mala</span><b>${feitos}/${r.itens.length}</b></div>
+    </div></div></div>`;
+}
+
+function renderViagem() {
+  const t = S.trip;
+  const segs = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-act="trip" data-k="${k}" data-v="${v}" aria-pressed="${String(t[k]) === String(v)}">${l}</button>`).join('')}</div>`;
+  const ats = [['cidade','Cidade e passeios'],['praia','Praia ou piscina'],['montanha','Caminhadas'],['neve','Neve'],['trabalho','Trabalho ou congresso']];
+  return `<section class="block">
+      <h2>Para onde vais?</h2>
+      <div class="grid2">
+        <label class="field"><span class="label">Origem</span><input type="text" id="t-origem" data-bind="origem" value="${esc(t.origem)}"></label>
+        <label class="field"><span class="label">Destino</span><input type="text" id="t-destino" data-bind="destino" value="${esc(t.destino)}"></label>
+        <label class="field"><span class="label">Partida</span><input type="date" id="t-inicio" data-bind="inicio" value="${esc(t.inicio)}"></label>
+        <label class="field"><span class="label">Regresso</span><input type="date" id="t-fim" data-bind="fim" value="${esc(t.fim)}"></label>
+      </div>
+    </section>
+    <section class="block"><h3>Clima previsto</h3>${segs('clima', [['quente','Quente'],['ameno','Ameno'],['frio','Frio'],['misto','Variável / chuva']])}</section>
+    <section class="block"><h3>O que vais fazer</h3><div class="seg">${ats.map(([v, l]) => `<button type="button" data-act="ativ" data-v="${v}" aria-pressed="${t.atividades.includes(v)}">${l}</button>`).join('')}</div></section>
+    <section class="block"><h3>Lavandaria e bagagem</h3>
+      <div class="grid2">
+        <label class="field"><span class="label">Vais lavar roupa?</span><select id="t-lav" data-bind="lavandaria">
+          ${[[0,'Não'],[3,'Sim, a cada 3 dias'],[4,'Sim, a cada 4 dias'],[5,'Sim, a cada 5 dias'],[7,'Sim, uma vez por semana']].map(([v, l]) => `<option value="${v}" ${+t.lavandaria === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select></label>
+        <div class="field"><span class="label">Bagagem</span>${segs('bagagem', [['cabine','Só cabine'],['porao','Mala de porão']])}</div>
+      </div>
+      <label class="check"><input type="checkbox" id="t-tomada" data-bind="tomada" ${t.tomada ? 'checked' : ''}><span>O destino usa outra tomada <span class="muted small">(Reino Unido, EUA, Suíça…)</span></span></label>
+      <label class="check"><input type="checkbox" id="t-longe" data-bind="longe" ${t.longe ? 'checked' : ''}><span>Fora da Europa ou destino tropical <span class="muted small">(passaporte, seguro, kit de saúde alargado)</span></span></label>
+    </section>
+    <section class="block"><div class="row"><a class="btn sign" href="#habitos" style="text-decoration:none">Seguinte: os teus hábitos</a><a class="btn ghost" href="#lista" style="text-decoration:none">Ver a mala</a></div></section>`;
+}
+
+function labelResp(q) {
+  const v = S.profile[q.k];
+  if (q.multi) return (v || []).length ? q.o.filter(o => v.includes(o[0])).map(o => o[1]).join(', ') : 'Nada disto';
+  const o = q.o.find(o => String(o[0]) === String(v));
+  return o ? o[1] : '—';
+}
+function renderHabitos() {
+  const i = S.qStep;
+  let html = '';
+  if (i < Q.length) {
+    const q = Q[i], v = S.profile[q.k];
+    html += `<section class="block"><div class="qcard">
+      <div class="row" style="justify-content:space-between"><span class="label">Pergunta ${i + 1} de ${Q.length}</span><button class="btn ghost small" data-act="qir" data-i="${Q.length}">Ver resumo</button></div>
+      <div class="bar"><i style="width:${(i / Q.length) * 100}%"></i></div>
+      <h2>${q.q}</h2>${q.h ? `<p class="muted">${q.h}</p>` : ''}
+      <div class="opts">${q.o.map((o, j) => {
+        const on = q.multi ? (v || []).includes(o[0]) : String(v) === String(o[0]);
+        return `<button class="opt" data-act="resp" data-j="${j}" aria-pressed="${on}">${o[1]}${o[2] ? `<small>${o[2]}</small>` : ''}</button>`;
+      }).join('')}</div>
+      <div class="row" style="justify-content:space-between">
+        <button class="btn ghost" data-act="qir" data-i="${i - 1}" ${i === 0 ? 'disabled' : ''}>Anterior</button>
+        <button class="btn" data-act="qir" data-i="${i + 1}">${q.multi ? 'Seguinte' : 'Manter e seguir'}</button>
+      </div></div></section>`;
+  } else {
+    html += `<section class="block"><h2>O teu perfil de viagem</h2><p class="muted">Responde uma vez, serve para todas as viagens. Toca numa linha para mudar.</p>
+      <div class="resumo">${Q.map((q, j) => `<button data-act="qir" data-i="${j}"><span>${q.curta}</span><b>${labelResp(q)}</b></button>`).join('')}</div>
+      <div class="row"><a class="btn sign" href="#lista" style="text-decoration:none">Ver a mala</a><button class="btn ghost" data-act="qir" data-i="0">Responder de novo</button></div></section>`;
+  }
+  html += `<section class="block"><h3>Cópia de segurança</h3>
+    <p class="muted small">Os dados ficam guardados neste navegador. Para passares para outro aparelho, copia o texto e cola-o lá.</p>
+    <div class="row"><button class="btn ghost" data-act="copiar">Copiar dados</button><span id="copiado" class="small muted"></span></div>
+    <textarea id="imp" placeholder="Cola aqui os dados copiados noutro aparelho"></textarea>
+    <div class="row"><button class="btn ghost" data-act="importar">Restaurar dados colados</button>
+    <button class="btn danger" data-act="confirmar" data-do="reset">${S._pend === 'reset' ? 'Toca de novo para apagar tudo' : 'Apagar tudo e recomeçar'}</button></div></section>`;
+  return html;
+}
+
+function renderLista() {
+  const r = gerar(), it = r.itens;
+  const feitos = it.filter(i => S.checked[i.id]).length;
+  const notas = [];
+  if (!r.lav && r.dias > 7) {
+    const agora = it.find(i => i.id === 'interior')?.qtd, com = Math.ceil(Math.min(r.dias, 4) * S.profile.interior) + (+S.profile.margem);
+    notas.push(['', `São ${r.dias} dias sem lavar roupa. Levas ${agora} mudas de roupa interior; com uma lavagem a cada 4 dias passavas para ${com}. Muda em Viagem se fizer sentido.`]);
+  }
+  if (r.pedidos.length > +S.profile.calcado) notas.push(['warn', `As atividades pedem ${r.pedidos.length} pares de calçado e o teu limite é ${S.profile.calcado}. Ou sobes o limite ou escolhes o que levas calçado para cobrir um deles.`]);
+  if (S.trip.bagagem === 'cabine') {
+    const pequenas = new Set(['interior','meias','meiasdesp','meiastermicas','luvas','gorro','gola']);
+    const roupa = it.filter(i => i.cat === 'roupa' && !pequenas.has(i.id)).reduce((a, i) => a + i.qtd, 0);
+    if (roupa > 18) notas.push(['warn', `${roupa} peças de roupa (sem contar roupa interior e meias) numa mala de cabine é muito. Reduz a margem de segurança ou planeia uma lavagem.`]);
+  }
+  const plano = pecasDoPlano();
+  if (plano.length) notas.push(['', `Incluí ${plano.length} peças do teu plano de outfits. As quantidades genéricas de partes de cima e de baixo podem estar a duplicar essas peças; ajusta com os botões.`]);
+
+  let html = `<section class="block">
+    <div class="row" style="justify-content:space-between"><h2>A mala</h2><span class="label">${r.dias} dias · ${r.lav ? 'lavar a cada ' + r.lav : 'sem lavandaria'}</span></div>
+    <div class="progress"><div class="bar"><i style="width:${it.length ? feitos / it.length * 100 : 0}%"></i></div><b>${feitos}/${it.length}</b></div>
+    ${notas.map(n => `<p class="nota ${n[0]}">${n[1]}</p>`).join('')}
+    <div class="row">
+      <label class="check"><input type="checkbox" id="esconder" data-act-change="esconder" ${S.esconder ? 'checked' : ''}><span>Esconder o que já está na mala</span></label>
+    </div></section>`;
+  for (const [cat, nome] of Object.entries(CATS)) {
+    const lista = it.filter(i => i.cat === cat), vis = lista.filter(i => !(S.esconder && S.checked[i.id]));
+    if (!lista.length) continue;
+    const f = lista.filter(i => S.checked[i.id]).length;
+    html += `<section class="block cat"><div class="cat-h"><span class="label">${nome}</span><span class="label">${f}/${lista.length}</span></div>
+      ${vis.map(i => `<div class="item ${S.checked[i.id] ? 'done' : ''}">
+        <input type="checkbox" id="chk-${esc(i.id)}" data-chk="${esc(i.id)}" ${S.checked[i.id] ? 'checked' : ''} aria-label="${esc(i.nome)}">
+        <label class="nm" for="chk-${esc(i.id)}"><span>${esc(i.nome)}</span>${i.nota ? `<small>${esc(i.nota)}</small>` : ''}</label>
+        <div class="qty"><button data-act="q" data-id="${esc(i.id)}" data-d="-1" aria-label="Menos">−</button><b>${i.qtd}</b><button data-act="q" data-id="${esc(i.id)}" data-d="1" aria-label="Mais">+</button></div>
+        <button class="x" data-act="rem" data-id="${esc(i.id)}" aria-label="Remover ${esc(i.nome)}">×</button>
+      </div>`).join('')}
+      ${S.esconder && !vis.length ? '<p class="muted small" style="padding-top:8px">Tudo na mala.</p>' : ''}
+    </section>`;
+  }
+  const nRem = Object.keys(S.removed).length;
+  html += `<section class="block"><h3>Juntar um item</h3>
+    <div class="grid2">
+      <label class="field"><span class="label">Item</span><input type="text" id="c-nome" placeholder="Ex.: Livro, carregador do relógio"></label>
+      <div class="grid2" style="grid-template-columns:1fr 90px">
+        <label class="field"><span class="label">Secção</span><select id="c-cat">${Object.entries(CATS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+        <label class="field"><span class="label">Qtd.</span><input type="number" id="c-qtd" min="1" value="1"></label>
+      </div>
+    </div>
+    <div class="row"><button class="btn" data-act="addc">Juntar</button>
+      ${nRem ? `<button class="btn ghost" data-act="repor">Repor ${nRem} ${nRem === 1 ? 'item removido' : 'itens removidos'}</button>` : ''}
+      <button class="btn ghost" data-act="confirmar" data-do="desmarcar">${S._pend === 'desmarcar' ? 'Toca de novo para confirmar' : 'Desmarcar tudo'}</button></div>
+  </section>`;
+  return html;
+}
+
+function renderOutfits() {
+  const W = S.wardrobe;
+  const n = t => W.filter(p => p.tipo === t).length;
+  const combos = (n('cima') * n('baixo') + n('unica')) * Math.max(1, n('calcado'));
+  const sel = new Set(Object.values(S.builder));
+  const temEx = W.some(p => p.ex) || S.outfits.some(o => o.ex);
+  let html = `<section class="block">
+    <div class="row" style="justify-content:space-between"><h2>Guarda-roupa da viagem</h2>${temEx ? '<button class="btn ghost small" data-act="limparex">Apagar exemplos</button>' : ''}</div>
+    <p class="muted">Junta as peças que estás a pensar levar. Toca numa peça para a pôr no outfit.</p>
+    <div class="grid2">
+      <label class="field"><span class="label">Peça</span><input type="text" id="w-nome" placeholder="Ex.: Camisa de linho"></label>
+      <label class="field"><span class="label">Tipo</span><select id="w-tipo">${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+      <label class="field"><span class="label">Cor</span><select id="w-cor">${Object.entries(CORES).map(([k, v]) => `<option value="${k}">${v[0]}${NEUTRAS.has(k) ? ' · neutra' : ''}</option>`).join('')}</select></label>
+      <label class="field"><span class="label">Ocasião</span><select id="w-oc">${Object.entries(OCASIOES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+    </div>
+    <div class="row"><button class="btn" data-act="addw">Juntar peça</button><span class="small muted">Com o que tens: <b class="stat">${combos}</b> combinações possíveis (cima × baixo × calçado).</span></div>`;
+  for (const [t, nome] of Object.entries(TIPOS)) {
+    const ps = W.filter(p => p.tipo === t);
+    if (!ps.length) continue;
+    html += `<div class="stack" style="gap:6px"><span class="label">${nome} · ${ps.length}</span><div class="pieces">${ps.map(p => `
+      <span class="piece ${sel.has(p.id) ? 'on' : ''}"><button class="pick" data-act="pick" data-id="${p.id}" aria-pressed="${sel.has(p.id)}">${sw(p.cor)}<span>${esc(p.nome)}</span>${p.ex ? '<span class="ex">EXEMPLO</span>' : ''}</button><button class="x" data-act="delw" data-id="${p.id}" aria-label="Apagar ${esc(p.nome)}">×</button></span>`).join('')}</div></div>`;
+  }
+  html += `</section>`;
+
+  const v = avaliar(bPecas());
+  const slotsK = S.builder.unica ? ['unica','camada','calcado','acessorio'] : ['cima','baixo','camada','calcado','acessorio'];
+  html += `<section class="block"><h2>Montar outfit</h2><div class="builder">
+    <div class="slots">${slotsK.map(k => { const p = peca(S.builder[k]); return `<div class="slot ${p ? 'full' : ''}"><span class="label">${TIPOS[k]}</span>${p ? `<b>${sw(p.cor)}${esc(p.nome)}</b>` : '<span class="muted small">vazio</span>'}</div>`; }).join('')}</div>
+    <p class="verdict ${v[0]}">${v[1]}</p>
+    <div class="grid2">
+      <label class="field"><span class="label">Sugerir para</span><select id="filtro"><option value="">Qualquer ocasião</option>${Object.entries(OCASIOES).map(([k, l]) => `<option value="${k}" ${S.filtro === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="field"><span class="label">Nome do outfit</span><input type="text" id="o-nome" value="${esc(S.oNome)}" placeholder="Ex.: Jantar de sexta"></label>
+    </div>
+    <div class="row"><button class="btn sign" data-act="sugerir">Sugerir combinação</button><button class="btn" data-act="guardaro" ${bPecas().length < 2 ? 'disabled' : ''}>Guardar outfit</button><button class="btn ghost" data-act="limpab">Limpar</button></div>
+  </div></section>`;
+
+  html += `<section class="block"><h2>Outfits guardados · ${S.outfits.length}</h2>${S.outfits.length ? `<div class="outfits">${S.outfits.map(o => {
+      const ps = o.pecas.map(peca).filter(Boolean);
+      return `<div class="ocard"><div class="strip">${ps.map(p => `<i style="background:${(CORES[p.cor] || CORES.cinzento)[1]}"></i>`).join('')}</div>
+        <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h3>${esc(o.nome)}</h3><button class="x" data-act="delo" data-id="${o.id}" aria-label="Apagar outfit">×</button></div>
+        ${o.ex ? '<span class="ex label">Exemplo</span>' : ''}
+        <ul>${ps.map(p => `<li>${esc(p.nome)}</li>`).join('')}</ul>
+        <button class="btn ghost small" data-act="editaro" data-id="${o.id}">Abrir no editor</button></div>`; }).join('')}</div>` : '<p class="muted">Ainda não guardaste nenhum. Monta um acima ou pede uma sugestão.</p>'}</section>`;
+
+  const { dias } = duracao(S.trip), tr = +S.profile.trocas || 1;
+  const nomesT = tr === 1 ? ['Outfit'] : tr === 2 ? ['Dia', 'Noite'] : ['Manhã', 'Tarde', 'Noite'];
+  const base = new Date(S.trip.inicio + 'T12:00');
+  const nd = Math.min(dias, 31);
+  let linhas = '';
+  for (let d = 0; d < nd; d++) {
+    const dt = new Date(base); dt.setDate(dt.getDate() + d);
+    const lab = isNaN(dt) ? `Dia ${d + 1}` : dt.toLocaleDateString('pt-PT', { weekday:'short', day:'numeric', month:'short' });
+    linhas += `<div class="pday"><span class="d">${lab}</span><div class="sel">${nomesT.map((nm, j) => `<select id="pl-${d}-${j}" data-plan="${d}-${j}" aria-label="${lab} ${nm}"><option value="">${nm}: por decidir</option>${S.outfits.map(o => `<option value="${o.id}" ${S.plan[d + '-' + j] === o.id ? 'selected' : ''}>${nm}: ${esc(o.nome)}</option>`).join('')}</select>`).join('')}</div></div>`;
+  }
+  const usadas = pecasDoPlano();
+  const r = gerar();
+  const regra = id => r.itens.filter(i => i.id === id).reduce((a, i) => a + i.qtd, 0);
+  const cnt = t => usadas.filter(p => p.tipo === t).length;
+  html += `<section class="block"><h2>Plano por dia</h2>
+    <p class="muted">Distribui os outfits pelos dias. As peças usadas passam para a lista da mala.</p>
+    ${S.outfits.length ? `<div class="plan">${linhas}</div>` : '<p class="muted">Guarda pelo menos um outfit para planear.</p>'}
+    ${dias > 31 ? '<p class="muted small">Mostro os primeiros 31 dias.</p>' : ''}
+    ${usadas.length ? `<div class="tw"><table class="cmp"><thead><tr><th>Peças</th><th style="text-align:right">No plano</th><th style="text-align:right">Pelos teus hábitos</th></tr></thead><tbody>
+      <tr><td>Partes de cima</td><td class="n">${cnt('cima')}</td><td class="n">${regra('topo')}</td></tr>
+      <tr><td>Partes de baixo</td><td class="n">${cnt('baixo')}</td><td class="n">${regra('baixo') + regra('calcoes')}</td></tr>
+      <tr><td>Calçado</td><td class="n">${cnt('calcado')}</td><td class="n">${+S.profile.calcado + 1} <span class="muted">(com o que levas calçado)</span></td></tr>
+    </tbody></table></div><p class="muted small">Se o plano usa menos peças do que os hábitos pedem, estás a levar a mais. Se usa mais, falta-te repetir peças.</p>` : ''}
+  </section>`;
+  return html;
+}
+
+const TABS = { viagem: renderViagem, habitos: renderHabitos, lista: renderLista, outfits: renderOutfits };
+function tabAtual() { const h = location.hash.slice(1); return TABS[h] ? h : 'viagem'; }
+function render() {
+  const tab = tabAtual();
+  renderPass();
+  document.querySelectorAll('#tabs a').forEach(a => {
+    if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  $('#main').innerHTML = TABS[tab]();
+}
+function commit() { save(); render(); }
+
+/* ---------- eventos ---------- */
+let pendTimer;
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  const a = b.dataset.act, id = b.dataset.id;
+  switch (a) {
+    case 'trip': S.trip[b.dataset.k] = b.dataset.v; S.trip.exemplo = false; break;
+    case 'ativ': { const s = new Set(S.trip.atividades); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); S.trip.atividades = [...s]; S.trip.exemplo = false; break; }
+    case 'resp': {
+      const q = Q[S.qStep], val = q.o[+b.dataset.j][0];
+      if (q.multi) { const s = new Set(S.profile[q.k] || []); s.has(val) ? s.delete(val) : s.add(val); S.profile[q.k] = [...s]; }
+      else { S.profile[q.k] = val; commit(); setTimeout(() => { S.qStep = Math.min(Q.length, S.qStep + 1); commit(); }, 160); return; }
+      break;
+    }
+    case 'qir': S.qStep = Math.max(0, Math.min(Q.length, +b.dataset.i)); break;
+    case 'q': { const r = gerar().itens.find(i => i.id === id); if (r) S.qtd[id] = Math.max(0, r.qtd + +b.dataset.d); break; }
+    case 'rem':
+      if (id.startsWith('c-')) S.custom = S.custom.filter(c => 'c-' + c.id !== id);
+      else S.removed[id] = true;
+      break;
+    case 'repor': S.removed = {}; break;
+    case 'addc': {
+      const nome = $('#c-nome').value.trim(); if (!nome) { $('#c-nome').focus(); return; }
+      S.custom.push({ id: uid(), nome, cat: $('#c-cat').value, qtd: Math.max(1, +$('#c-qtd').value || 1) }); break;
+    }
+    case 'confirmar':
+      if (S._pend !== b.dataset.do) { S._pend = b.dataset.do; clearTimeout(pendTimer); pendTimer = setTimeout(() => { S._pend = null; render(); }, 4000); render(); return; }
+      S._pend = null;
+      if (b.dataset.do === 'desmarcar') S.checked = {};
+      if (b.dataset.do === 'reset') { S = exemplo(); S.wardrobe = []; S.outfits = []; S.trip.exemplo = false; }
+      break;
+    case 'copiar': {
+      const txt = JSON.stringify(S), out = $('#copiado');
+      const falha = () => { const t = $('#imp'); t.value = txt; t.select(); out.textContent = 'Seleccionei o texto em baixo, copia-o à mão.'; };
+      try { navigator.clipboard.writeText(txt).then(() => out.textContent = 'Copiado.', falha); } catch (err) { falha(); }
+      return;
+    }
+    case 'importar':
+      try { const d = JSON.parse($('#imp').value); if (!d.trip) throw 0; S = Object.assign(exemplo(), d); }
+      catch (err) { $('#copiado').textContent = 'Esse texto não são dados desta app. Copia de novo no outro aparelho.'; return; }
+      break;
+    case 'addw': {
+      const nome = $('#w-nome').value.trim(); if (!nome) { $('#w-nome').focus(); return; }
+      S.wardrobe.push({ id: uid(), nome, tipo: $('#w-tipo').value, cor: $('#w-cor').value, ocasiao: $('#w-oc').value }); break;
+    }
+    case 'delw':
+      S.wardrobe = S.wardrobe.filter(p => p.id !== id);
+      S.outfits.forEach(o => o.pecas = o.pecas.filter(x => x !== id));
+      for (const k in S.builder) if (S.builder[k] === id) delete S.builder[k];
+      break;
+    case 'pick': {
+      const p = peca(id), k = p.tipo;
+      if (S.builder[k] === id) delete S.builder[k];
+      else { S.builder[k] = id; if (k === 'unica') { delete S.builder.cima; delete S.builder.baixo; } if (k === 'cima' || k === 'baixo') delete S.builder.unica; }
+      break;
+    }
+    case 'sugerir': sugerir(); break;
+    case 'limpab': S.builder = {}; S.oNome = ''; break;
+    case 'guardaro': {
+      const ps = bPecas(); if (ps.length < 2) return;
+      S.outfits.push({ id: uid(), nome: S.oNome.trim() || 'Outfit ' + (S.outfits.length + 1), pecas: ps.map(p => p.id) });
+      S.builder = {}; S.oNome = ''; break;
+    }
+    case 'editaro': {
+      const o = S.outfits.find(x => x.id === id); S.builder = {};
+      o.pecas.map(peca).filter(Boolean).forEach(p => S.builder[p.tipo] = p.id);
+      S.oNome = o.nome + ' (cópia)'; save(); render(); document.querySelector('.builder')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
+    }
+    case 'delo':
+      S.outfits = S.outfits.filter(o => o.id !== id);
+      for (const k in S.plan) if (S.plan[k] === id) delete S.plan[k];
+      break;
+    case 'limparex': {
+      const ids = new Set(S.wardrobe.filter(p => p.ex).map(p => p.id));
+      S.wardrobe = S.wardrobe.filter(p => !p.ex);
+      S.outfits = S.outfits.filter(o => !o.ex).map(o => ({ ...o, pecas: o.pecas.filter(x => !ids.has(x)) }));
+      for (const k in S.builder) if (ids.has(S.builder[k])) delete S.builder[k];
+      for (const k in S.plan) if (!S.outfits.some(o => o.id === S.plan[k])) delete S.plan[k];
+      break;
+    }
+    default: return;
+  }
+  commit();
+});
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.bind && el.type === 'text') { S.trip[el.dataset.bind] = el.value; S.trip.exemplo = false; save(); renderPass(); }
+  if (el.id === 'o-nome') { S.oNome = el.value; save(); }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.dataset.chk) { if (el.checked) S.checked[el.dataset.chk] = true; else delete S.checked[el.dataset.chk]; return commit(); }
+  if (el.dataset.bind) {
+    const k = el.dataset.bind;
+    S.trip[k] = el.type === 'checkbox' ? el.checked : k === 'lavandaria' ? +el.value : el.value;
+    S.trip.exemplo = false;
+    if (k === 'inicio' && S.trip.fim < S.trip.inicio) S.trip.fim = S.trip.inicio;
+    return commit();
+  }
+  if (el.dataset.plan) { if (el.value) S.plan[el.dataset.plan] = el.value; else delete S.plan[el.dataset.plan]; return commit(); }
+  if (el.id === 'esconder') { S.esconder = el.checked; return commit(); }
+  if (el.id === 'filtro') { S.filtro = el.value; save(); }
+});
+window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
+render();
+</script>
+</body>
+</html>
