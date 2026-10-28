@@ -113,6 +113,7 @@ textarea{min-height:90px;font-family:var(--f-mono);font-size:.8rem}
 .item{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .item .nm{min-width:0}
 .item .nm small{display:block;color:var(--muted);font-size:.82rem}
+.item select.onde{margin-top:5px;padding:3px 8px;font-size:.8rem;width:auto;max-width:100%;border-radius:6px;color:var(--muted)}
 .item.done .nm span{text-decoration:line-through;color:var(--muted)}
 .item input[type=checkbox]{width:22px;height:22px;accent-color:var(--ok)}
 .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
@@ -256,7 +257,8 @@ function exemplo() {
       { id: uid(), nome:'Passeio na cidade', pecas:[by('T-shirt cinzenta'), by('Calças de ganga'), by('Ténis brancos')], ex:true },
       { id: uid(), nome:'Jantar', pecas:[by('Camisa branca'), by('Chinos bege'), by('Blazer azul-marinho'), by('Sapatos castanhos'), by('Cinto castanho')], ex:true }
     ],
-    plan: {}, builder: {}, filtro: '', oNome: ''
+    plan: {}, builder: {}, filtro: '', oNome: '',
+    malas: [{ id:'m1', nome:'Mala' }], onde: {}, verPor: 'cat'
   };
 }
 let S;
@@ -373,6 +375,12 @@ function duracao(t) {
 const codigo = s => (String(s || '---').normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || '---').padEnd(3, '-');
 const fmtData = iso => { const d = new Date(iso + 'T12:00'); return isNaN(d) ? '—' : d.toLocaleDateString('pt-PT', { day:'numeric', month:'short' }); };
 const peca = id => S.wardrobe.find(p => p.id === id);
+const MALA_CAT = { roupa:0, calcado:0, acessorios:1, eletronica:1, documentos:1, caminho:1, utensilios:1, higiene:2, saude:2 };
+function malaDe(i) {
+  const ms = S.malas && S.malas.length ? S.malas : [{ id:'m1', nome:'Mala' }];
+  if (S.onde[i.id] && ms.some(m => m.id === S.onde[i.id])) return S.onde[i.id];
+  return ms[Math.min(MALA_CAT[i.cat] ?? 0, ms.length - 1)].id;
+}
 
 function pecasDoPlano() {
   const { dias } = duracao(S.trip), ids = new Set();
@@ -663,17 +671,29 @@ function renderLista() {
     <div class="row">
       <label class="check"><input type="checkbox" id="esconder" data-act-change="esconder" ${S.esconder ? 'checked' : ''}><span>Esconder o que já está na mala</span></label>
     </div></section>`;
-  for (const [cat, nome] of Object.entries(CATS)) {
-    const lista = it.filter(i => i.cat === cat), vis = lista.filter(i => !(S.esconder && S.checked[i.id]));
-    if (!lista.length) continue;
-    const f = lista.filter(i => S.checked[i.id]).length;
-    html += `<section class="block cat"><div class="cat-h"><span class="label">${nome}</span><span class="label">${f}/${lista.length}</span></div>
-      ${vis.map(i => `<div class="item ${S.checked[i.id] ? 'done' : ''}">
+  const ms = S.malas;
+  html += `<section class="block"><div class="row" style="justify-content:space-between"><h3>Onde vai cada coisa</h3>
+      <div class="seg"><button type="button" data-act="verpor" data-v="cat" aria-pressed="${S.verPor !== 'mala'}">Por secção</button><button type="button" data-act="verpor" data-v="mala" aria-pressed="${S.verPor === 'mala'}">Por mala</button></div></div>
+    <div class="pieces">${ms.map(m => `<span class="piece"><span>${esc(m.nome)} <span class="muted stat">${it.filter(i => malaDe(i) === m.id).length}</span></span>${ms.length > 1 ? `<button class="x" data-act="delmala" data-id="${m.id}" aria-label="Apagar ${esc(m.nome)}">×</button>` : ''}</span>`).join('')}</div>
+    <div class="row"><input type="text" id="m-nome" placeholder="Ex.: Mochila 2, necessaire, saco dos sapatos" style="flex:1;min-width:180px"><button class="btn ghost" data-act="addmala">Juntar mala</button></div>
+    <p class="muted small">Cada item vai para uma mala conforme a secção. Muda-o no seletor por baixo do nome.</p>
+  </section>`;
+  const linha = i => `<div class="item ${S.checked[i.id] ? 'done' : ''}">
         <input type="checkbox" id="chk-${esc(i.id)}" data-chk="${esc(i.id)}" ${S.checked[i.id] ? 'checked' : ''} aria-label="${esc(i.nome)}">
-        <label class="nm" for="chk-${esc(i.id)}"><span>${esc(i.nome)}</span>${i.nota ? `<small>${esc(i.nota)}</small>` : ''}</label>
+        <div class="nm"><label for="chk-${esc(i.id)}"><span>${esc(i.nome)}</span>${i.nota ? `<small>${esc(i.nota)}</small>` : ''}</label>
+          ${ms.length > 1 ? `<select class="onde" data-onde="${esc(i.id)}" aria-label="Mala de ${esc(i.nome)}">${ms.map(m => `<option value="${m.id}" ${malaDe(i) === m.id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select>` : ''}</div>
         <div class="qty"><button data-act="q" data-id="${esc(i.id)}" data-d="-1" aria-label="Menos">−</button><b>${i.qtd}</b><button data-act="q" data-id="${esc(i.id)}" data-d="1" aria-label="Mais">+</button></div>
         <button class="x" data-act="rem" data-id="${esc(i.id)}" aria-label="Remover ${esc(i.nome)}">×</button>
-      </div>`).join('')}
+      </div>`;
+  const grupos = S.verPor === 'mala' && ms.length > 1
+    ? ms.map(m => [m.nome, it.filter(i => malaDe(i) === m.id)])
+    : Object.entries(CATS).map(([cat, nome]) => [nome, it.filter(i => i.cat === cat)]);
+  for (const [nome, lista] of grupos) {
+    const vis = lista.filter(i => !(S.esconder && S.checked[i.id]));
+    if (!lista.length) continue;
+    const f = lista.filter(i => S.checked[i.id]).length;
+    html += `<section class="block cat"><div class="cat-h"><span class="label">${esc(nome)}</span><span class="label">${f}/${lista.length}</span></div>
+      ${vis.map(linha).join('')}
       ${S.esconder && !vis.length ? '<p class="muted small" style="padding-top:8px">Tudo na mala.</p>' : ''}
     </section>`;
   }
@@ -812,6 +832,15 @@ document.addEventListener('click', e => {
       else S.removed[id] = true;
       break;
     case 'repor': S.removed = {}; break;
+    case 'verpor': S.verPor = b.dataset.v; break;
+    case 'addmala': {
+      const nome = $('#m-nome').value.trim(); if (!nome) { $('#m-nome').focus(); return; }
+      S.malas.push({ id: 'm' + uid(), nome }); break;
+    }
+    case 'delmala':
+      S.malas = S.malas.filter(m => m.id !== id);
+      for (const k in S.onde) if (S.onde[k] === id) delete S.onde[k];
+      break;
     case 'addc': {
       const nome = $('#c-nome').value.trim(); if (!nome) { $('#c-nome').focus(); return; }
       S.custom.push({ id: uid(), nome, cat: $('#c-cat').value, qtd: Math.max(1, +$('#c-qtd').value || 1) }); break;
@@ -896,6 +925,7 @@ document.addEventListener('change', e => {
   }
   if (el.dataset.plan) { if (el.value) S.plan[el.dataset.plan] = el.value; else delete S.plan[el.dataset.plan]; return commit(); }
   if (el.id === 'esconder') { S.esconder = el.checked; return commit(); }
+  if (el.dataset.onde) { S.onde[el.dataset.onde] = el.value; return commit(); }
   if (el.id === 'filtro') { S.filtro = el.value; save(); }
   if (el.id === 'w-tipo') RW.tipo = el.value;
   if (el.id === 'w-cor') RW.cor = el.value;

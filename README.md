@@ -4,7 +4,7 @@ Organizador de malas para viagens curtas ou longas. Abre o `index.html` no naveg
 
 - **Viagem**: destino, datas, transporte (avião, carro ou comboio), clima, atividades, lavandaria e tipo de bagagem.
 - **Hábitos**: questionário único (pijamas por semana, trocas de roupa por dia, margem de segurança, etc.) que serve para todas as viagens.
-- **Mala**: lista gerada por secções com quantidades calculadas, checklist, itens próprios.
+- **Mala**: lista gerada por secções com quantidades calculadas, checklist, itens próprios e atribuição de cada item a uma mala ou mochila (vista por secção ou por mala).
 - **Outfits**: guarda-roupa da viagem, montagem e sugestão de combinações, plano por dia. As peças do plano entram na lista da mala.
 
 **Fotografias**: cada peça pode ter fotografia (câmara ou galeria), reduzida no próprio aparelho antes de ser guardada.
